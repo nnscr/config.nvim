@@ -143,7 +143,7 @@ vim.opt.splitbelow = true
 --  See `:help 'list'`
 --  and `:help 'listchars'`
 vim.opt.list = true
-vim.opt.listchars = { tab = '» ', trail = '·', nbsp = '␣' }
+vim.opt.listchars = { tab = '» ', trail = ' ', nbsp = '␣' }
 
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = 'split'
@@ -162,6 +162,11 @@ vim.opt.hlsearch = true
 
 -- Show a visual line on column 120
 vim.opt.colorcolumn = '120'
+vim.opt.termguicolors = true
+
+-- disable comment continuation on new lines for php files (if will still work for all comments, but stops
+-- adding comments after attributes because the default formatter thing thinks it's a comment)
+vim.g.PHP_autoformatcomment = 0
 
 vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 
@@ -170,6 +175,10 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+
+vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
+vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
+vim.keymap.set('n', '<leader>p', '"*p', { desc = '[P]aste from clipboard' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -191,8 +200,18 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 --  See `:help wincmd` for a list of all window commands
 vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+-- vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+-- vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
+vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
+
+vim.keymap.set('n', '<leader>e', function()
+  if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
+    vim.api.nvim_exec(':bd', false)
+  else
+    vim.api.nvim_exec(':Ex', false)
+  end
+end, { desc = '[E]xplorer (Vim)' })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -253,11 +272,6 @@ require('lazy').setup({
     'lewis6991/gitsigns.nvim',
     opts = {
       signs = {
-        -- add = { text = '+' },
-        -- change = { text = '~' },
-        -- delete = { text = '_' },
-        -- topdelete = { text = '‾' },
-        -- changedelete = { text = '~' },
         add = { text = '▎' },
         change = { text = '▎' },
         delete = { text = '' },
@@ -266,6 +280,13 @@ require('lazy').setup({
         untracked = { text = '▎' },
       },
     },
+    config = function(_, opts)
+      require('gitsigns').setup(opts)
+      vim.keymap.set('n', '<leader>gj', require('gitsigns').next_hunk, { desc = 'Next Git Sign' })
+      vim.keymap.set('n', '<leader>gk', require('gitsigns').prev_hunk, { desc = 'Previous Git Sign' })
+      vim.keymap.set('n', '<leader>gq', require('gitsigns').setqflist, { desc = 'Previous Git Sign' })
+      vim.keymap.set('n', '<leader>gd', require('gitsigns').toggle_deleted, { desc = 'Toggle [d]eleted lines' })
+    end,
   },
 
   -- NOTE: Plugins can also be configured to run Lua code when they are loaded.
@@ -380,17 +401,29 @@ require('lazy').setup({
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+
+      local find_files = function()
+        builtin.find_files {
+          hidden = true,
+        }
+      end
+
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sF', builtin.find_files, { desc = '[S]earch All [F]iles' })
-      vim.keymap.set('n', '<leader>sf', builtin.git_files, { desc = '[S]earch Git [F]iles' })
+      vim.keymap.set('n', '<leader>sf', find_files, { desc = '[S]earch All [F]iles' })
+      vim.keymap.set('n', '<leader>sF', builtin.git_files, { desc = '[S]earch Git [F]iles' })
+      vim.keymap.set('n', '<leader><leader>', find_files, { desc = '[S]earch Git [F]iles' })
+      vim.keymap.set('n', '<leader>sa', function()
+        -- find all files, even ones ignored by .gitignore
+        builtin.find_files { no_ignore = true, hidden = true }
+      end, { desc = '[S]earch [a]ll Files' })
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
-      vim.keymap.set('n', '<leader><leader>', builtin.buffers, { desc = '[ ] Find existing buffers' })
+      vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = 'Find existing [b]uffers' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -485,7 +518,7 @@ require('lazy').setup({
 
           -- Jump to the implementation of the word under your cursor.
           --  Useful when your language has ways of declaring types without an actual implementation.
-          map('gI', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
+          map('gi', require('telescope.builtin').lsp_implementations, '[G]oto [I]mplementation')
 
           -- Jump to the type of the word under your cursor.
           --  Useful when you're not sure what type a variable is and you want to see
@@ -565,8 +598,32 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
-        tsserver = {},
-        volar = {},
+        tsserver = {
+          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
+          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
+          init_options = {
+            hostInfo = 'neovim',
+            plugins = {
+              {
+                name = '@vue/typescript-plugin',
+                -- TODO: make this path more portable...
+                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+                languages = {
+                  'typescript',
+                  'vue',
+                },
+              },
+            },
+          },
+          filetypes = {
+            'javascript',
+            'typescript',
+            'vue',
+          },
+        },
+        volar = {
+          -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
+        },
         --
 
         lua_ls = {
@@ -596,6 +653,10 @@ require('lazy').setup({
             -- return root
           end,
         },
+        prettierd = {},
+        -- emmet_ls = {
+        --   filetypes = { 'html', 'vue' },
+        -- },
       }
 
       -- Ensure the servers and tools above are installed
@@ -626,6 +687,8 @@ require('lazy').setup({
           end,
         },
       }
+
+      require('lspconfig').volar.setup {}
     end,
   },
 
@@ -663,6 +726,7 @@ require('lazy').setup({
         -- is found.
         javascript = { { 'prettierd', 'prettier' } },
         vue = { { 'prettierd', 'prettier' } },
+        json = { { 'prettierd', 'prettier' } },
       },
     },
   },
@@ -694,6 +758,38 @@ require('lazy').setup({
           --   end,
           -- },
         },
+        config = function()
+          local ls = require 'luasnip'
+          local t = ls.text_node
+          local i = ls.insert_node
+
+          -- add pubf snippet for php public function (without overwriting others)
+          ls.add_snippets('php', {
+            ls.snippet({ trig = 'pubf' }, {
+              t 'public function ',
+              i(1),
+              t '(',
+              i(2),
+              t ')',
+              t { '', '{', '' },
+              t '\t',
+              i(3, ''),
+              t { '', '}' },
+            }),
+          })
+
+          ls.add_snippets('vue', {
+            ls.snippet({ trig = 'sfc' }, {
+              t { '<script setup lang="ts">', '' },
+              i(1),
+              t { '', '</script>', '' },
+              t { '' },
+              t { '<template>', '' },
+              i(2),
+              t { '', '</template>', '' },
+            }),
+          })
+        end,
       },
       'saadparwaiz1/cmp_luasnip',
 
@@ -799,21 +895,22 @@ require('lazy').setup({
   --     -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
   --     -- vim.cmd.colorscheme 'tokyonight-night'
   --
-  --     -- You can configure highlights by doing something like:
-  --     --  NOTE: Test
-  --     vim.cmd.hi 'Comment gui=none'
   --   end,
   -- },
 
   {
     'tiagovla/tokyodark.nvim',
     opts = {
+      transparent_background = true,
       styles = {
         comments = { italic = true }, -- style for comments
         keywords = { italic = false }, -- style for keywords
         identifiers = { italic = false }, -- style for identifiers
         functions = {}, -- style for functions
         variables = {}, -- style for variables
+      },
+      custom_palette = {
+        bg2 = '#545567',
       },
     },
     config = function(_, opts)
@@ -823,7 +920,20 @@ require('lazy').setup({
   },
 
   -- Highlight todo, notes, etc in comments
-  { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
+  {
+    'folke/todo-comments.nvim',
+    event = 'VimEnter',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    opts = {
+      signs = false,
+      colors = {
+        hint = { '#95C562' },
+      },
+    },
+  },
+  {
+    'tpope/vim-surround',
+  },
 
   { -- Collection of various small independent plugins/modules
     'echasnovski/mini.nvim',
@@ -841,7 +951,7 @@ require('lazy').setup({
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
       -- - sd'   - [S]urround [D]elete [']quotes
       -- - sr)'  - [S]urround [R]eplace [)] [']
-      require('mini.surround').setup()
+      --require('mini.surround').setup()
 
       -- Simple and easy statusline.
       --  You could remove this setup call if you don't like it,
@@ -866,7 +976,7 @@ require('lazy').setup({
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
     opts = {
-      ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc', 'vue', 'php', 'typescript', 'dockerfile' },
+      ensure_installed = { 'bash', 'c', 'html', 'lua', 'luadoc', 'markdown', 'vim', 'vimdoc', 'vue', 'php', 'typescript', 'dockerfile', 'css', 'scss' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
@@ -898,7 +1008,7 @@ require('lazy').setup({
     config = function()
       require('auto-session').setup {
         log_level = 'error',
-        auto_session_allowed_dirs = { '~/code/*', '~/.config/*' },
+        auto_session_allowed_dirs = { '~/code/*', '~/code/*/*', '~/.config/*' },
         auto_save_enabled = true,
         auto_restore_enabled = true,
       }
@@ -964,35 +1074,40 @@ require('lazy').setup({
       -- OPTIONAL:
       --   `nvim-notify` is only needed, if you want to use the notification view.
       --   If not available, we use `mini` as the fallback
-      'rcarriga/nvim-notify',
+      {
+        'rcarriga/nvim-notify',
+        opts = {
+          background_colour = '#1E1E1E',
+        },
+      },
     },
   },
-  { -- file explorer
-    'nvim-neo-tree/neo-tree.nvim',
-    branch = 'v3.x',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
-      'MunifTanjim/nui.nvim',
-      '3rd/image.nvim', -- Optional image support in preview window: See `# Preview Mode` for more information
-    },
-    config = function()
-      require('neo-tree').setup {
-        auto_open = true,
-        update_to_buf_dir = {
-          enable = true,
-          auto_open = true,
-        },
-        view = {
-          width = 30,
-          side = 'left',
-          auto_resize = true,
-        },
-      }
-
-      vim.keymap.set('n', '<leader>e', ':Neotree toggle<CR>', { desc = '[E]xplorer (Neotree)' })
-    end,
-  },
+  -- { -- file explorer
+  --   'nvim-neo-tree/neo-tree.nvim',
+  --   branch = 'v3.x',
+  --   dependencies = {
+  --     'nvim-lua/plenary.nvim',
+  --     'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
+  --     'MunifTanjim/nui.nvim',
+  --     '3rd/image.nvim', -- Optional image support in preview window: See `# Preview Mode` for more information
+  --   },
+  --   config = function()
+  --     require('neo-tree').setup {
+  --       auto_open = false,
+  --       update_to_buf_dir = {
+  --         enable = true,
+  --         auto_open = false,
+  --       },
+  --       view = {
+  --         width = 30,
+  --         side = 'left',
+  --         auto_resize = true,
+  --       },
+  --     }
+  --
+  --     vim.keymap.set('n', '<leader>E', ':Neotree toggle<CR>', { desc = '[E]xplorer (Neotree)' })
+  --   end,
+  -- },
   { -- LSP rename when a file or directory is renamed (must be loaded after neotree)
     'antosha417/nvim-lsp-file-operations',
     dependencies = {
@@ -1054,6 +1169,28 @@ require('lazy').setup({
         },
       }
     end,
+  },
+  {
+    'NvChad/nvim-colorizer.lua',
+    config = function()
+      require('colorizer').setup {
+        user_default_options = {
+          mode = 'virtualtext',
+        },
+      }
+    end,
+  },
+  {
+    'windwp/nvim-ts-autotag',
+    opts = {
+      autotag = {
+        enable = true,
+        enable_rename = true,
+        enable_close = true,
+        enable_close_on_slash = true,
+        filetypes = { 'html', 'xml', 'vue' },
+      },
+    },
   },
 
   -- { -- Add indentation guides even on blank lines
