@@ -164,6 +164,10 @@ vim.opt.hlsearch = true
 vim.opt.colorcolumn = '120'
 vim.opt.termguicolors = true
 
+-- enable spell checking
+vim.opt.spell = true
+vim.opt.spelllang = 'en_us,de_de'
+
 -- disable comment continuation on new lines for php files (if will still work for all comments, but stops
 -- adding comments after attributes because the default formatter thing thinks it's a comment)
 vim.g.PHP_autoformatcomment = 0
@@ -173,8 +177,8 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
-vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Show diagnostic [E]rror messages' })
-vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
+vim.keymap.set('n', '<leader>de', vim.diagnostic.open_float, { desc = 'Show [d]iagnostic [E]rror messages' })
+vim.keymap.set('n', '<leader>dq', vim.diagnostic.setloclist, { desc = 'Open [d]iagnostic [Q]uickfix list' })
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
@@ -205,13 +209,14 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
 vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
 
-vim.keymap.set('n', '<leader>e', function()
-  if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
-    vim.api.nvim_exec(':bd', false)
-  else
-    vim.api.nvim_exec(':Ex', false)
-  end
-end, { desc = '[E]xplorer (Vim)' })
+-- vim.keymap.set('n', '<leader>e', function()
+--   if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
+--     vim.api.nvim_exec(':bd', false)
+--   else
+--     vim.api.nvim_exec(':Ex', false)
+--   end
+-- end, { desc = '[E]xplorer (netrw)' })
+vim.keymap.set('n', '-', '<CMD>Oil<CR>', { desc = 'Open parent directory' })
 
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
@@ -537,9 +542,14 @@ require('lazy').setup({
           --  Most Language Servers support renaming across files, etc.
           map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
 
+          -- organize imports for tsserver (typescript-tools uses :TSToolsOrganizeImports)
+          map('<leader>co', ':OrganizeImports<CR>', '[C]ode [O]rganize Imports')
+          -- map('<leader>co', ':TSToolsOrganizeImports<CR>', '[C]ode [O]rganize Imports')
+
           -- Execute a code action, usually your cursor needs to be on top of an error
           -- or a suggestion from your LSP for this to activate.
           map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
+          map('<leader>cx', ':EslintFixAll<CR>', '[C]ode Fi[x] all')
           vim.keymap.set('i', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
           vim.keymap.set('n', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
 
@@ -598,33 +608,12 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
-        tsserver = {
-          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
-          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
-          init_options = {
-            hostInfo = 'neovim',
-            plugins = {
-              {
-                name = '@vue/typescript-plugin',
-                -- TODO: make this path more portable...
-                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
-                languages = {
-                  'typescript',
-                  'vue',
-                },
-              },
-            },
-          },
-          filetypes = {
-            'javascript',
-            'typescript',
-            'vue',
-          },
-        },
+        tsserver = {},
         volar = {
+          filetypes = { 'vue' },
           -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
         },
-        --
+        -- eslint = {},
 
         lua_ls = {
           -- cmd = {...},
@@ -640,23 +629,31 @@ require('lazy').setup({
             },
           },
         },
-        phpactor = {
-          root_dir = function(pattern)
-            -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
-            -- (because i usually open the whole project in neovim, not api or app directory)
-            local util = require 'lspconfig.util'
-            local cwd = vim.loop.cwd()
-            local root = util.root_pattern 'composer.json'(pattern)
-
-            -- prefer cwd if root is a descendant
-            return util.path.is_descendant(root, cwd) and cwd or root
-            -- return root
-          end,
+        -- phpactor = {
+        --   root_dir = function(pattern)
+        --     -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
+        --     -- (because i usually open the whole project in neovim, not api or app directory)
+        --     local util = require 'lspconfig.util'
+        --     local cwd = vim.loop.cwd()
+        --     local root = util.root_pattern 'composer.json'(pattern)
+        --
+        --     -- prefer cwd if root is a descendant
+        --     return util.path.is_descendant(root, cwd) and cwd or root
+        --     -- return root
+        --   end,
+        -- },
+        intelephense = {
+          -- init_options = {
+          --   licenceKey = '/Users/nnscr/intelephense/license.txt',
+          -- },
         },
         prettierd = {},
-        -- emmet_ls = {
-        --   filetypes = { 'html', 'vue' },
-        -- },
+        emmet_language_server = {
+          filetypes = { 'html', 'vue' },
+          init_options = {
+            showSuggestionsAsSnippets = true,
+          },
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -687,8 +684,54 @@ require('lazy').setup({
           end,
         },
       }
-
-      require('lspconfig').volar.setup {}
+      require('lspconfig').tsserver.setup {
+        -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
+        -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
+        init_options = {
+          hostInfo = 'neovim',
+          plugins = {
+            {
+              name = '@vue/typescript-plugin',
+              -- TODO: make this path more portable...
+              location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+              languages = {
+                'typescript',
+                'vue',
+              },
+            },
+          },
+          tsserver = {
+            -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
+            --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
+            path = '/opt/homebrew/lib/node_modules/typescript/lib',
+          },
+        },
+        filetypes = {
+          'javascript',
+          'typescript',
+          'vue',
+        },
+        -- config = function()
+        --   local function organize_imports()
+        --     local params = {
+        --       command = '_typescript.organizeImports',
+        --       arguments = { vim.api.nvim_buf_get_name(0) },
+        --       title = '',
+        --     }
+        --     vim.lsp.buf.execute_command(params)
+        --   end
+        --
+        --   require('lspconfig').tsserver.setup {
+        --     capabilities = capabilities,
+        --     commands = {
+        --       OrganizeImports = {
+        --         organize_imports,
+        --         description = 'Organize Imports',
+        --       },
+        --     },
+        --   }
+        -- end,
+      }
     end,
   },
 
@@ -725,6 +768,7 @@ require('lazy').setup({
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
         javascript = { { 'prettierd', 'prettier' } },
+        typescript = { { 'prettierd', 'prettier' } },
         vue = { { 'prettierd', 'prettier' } },
         json = { { 'prettierd', 'prettier' } },
       },
@@ -767,6 +811,28 @@ require('lazy').setup({
           ls.add_snippets('php', {
             ls.snippet({ trig = 'pubf' }, {
               t 'public function ',
+              i(1),
+              t '(',
+              i(2),
+              t ')',
+              t { '', '{', '' },
+              t '\t',
+              i(3, ''),
+              t { '', '}' },
+            }),
+            ls.snippet({ trig = 'prif' }, {
+              t 'private function ',
+              i(1),
+              t '(',
+              i(2),
+              t ')',
+              t { '', '{', '' },
+              t '\t',
+              i(3, ''),
+              t { '', '}' },
+            }),
+            ls.snippet({ trig = 'pubsf' }, {
+              t 'public static function ',
               i(1),
               t '(',
               i(2),
@@ -914,7 +980,17 @@ require('lazy').setup({
       },
     },
     config = function(_, opts)
+      -- load setup with opts first, because some styles get overwritten here and the palette and
+      -- highlights import would reset these back to the default values otherwise...
       require('tokyodark').setup(opts)
+      -- local p = require 'tokyodark.palette'
+      local h = require('tokyodark.highlights').highlights
+
+      require('tokyodark').setup {
+        custom_highlights = {
+          ['@variable.member.vue'] = h.Function,
+        },
+      }
       vim.cmd.colorscheme 'tokyodark'
     end,
   },
@@ -1108,16 +1184,26 @@ require('lazy').setup({
   --     vim.keymap.set('n', '<leader>E', ':Neotree toggle<CR>', { desc = '[E]xplorer (Neotree)' })
   --   end,
   -- },
-  { -- LSP rename when a file or directory is renamed (must be loaded after neotree)
-    'antosha417/nvim-lsp-file-operations',
-    dependencies = {
-      'nvim-lua/plenary.nvim',
-      'nvim-neo-tree/neo-tree.nvim',
+  {
+    'stevearc/oil.nvim',
+    opts = {
+      keymaps = {
+        ['<Esc>'] = 'actions.close',
+      },
     },
-    config = function()
-      require('lsp-file-operations').setup()
-    end,
+    -- Optional dependencies
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
   },
+  -- { -- LSP rename when a file or directory is renamed (must be loaded after neotree)
+  --   'antosha417/nvim-lsp-file-operations',
+  --   dependencies = {
+  --     'nvim-lua/plenary.nvim',
+  --     -- 'nvim-neo-tree/neo-tree.nvim',
+  --   },
+  --   config = function()
+  --     require('lsp-file-operations').setup()
+  --   end,
+  -- },
   {
     'chentoast/marks.nvim',
     opts = {},
@@ -1192,6 +1278,50 @@ require('lazy').setup({
       },
     },
   },
+  -- {
+  --   -- taken from https://github.com/pmizio/typescript-tools.nvim/issues/249
+  --   'pmizio/typescript-tools.nvim',
+  --   dependencies = { 'nvim-lua/plenary.nvim', 'neovim/nvim-lspconfig' },
+  --   config = function()
+  --     require('typescript-tools').setup {
+  --       on_attach = function()
+  --         -- auto organize imports when saving file
+  --         -- vim.api.nvim_create_autocmd('BufWritePre', { command = ':TSToolsOrganizeImports' })
+  --       end,
+  --       filetypes = {
+  --         'javascript',
+  --         'javascriptreact',
+  --         'typescript',
+  --         'typescriptreact',
+  --
+  --         'vue', -- This needed to be added.
+  --       },
+  --       settings = {
+  --         tsserver_plugins = {
+  --           -- Seemingly this is enough, no name, location or languages needed.
+  --           '@vue/typescript-plugin',
+  --           -- {
+  --           --   name = '@vue/typescript-plugin',
+  --           --   location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+  --           --   languages = {
+  --           --     'typescript',
+  --           --     'vue',
+  --           --   },
+  --           -- },
+  --         },
+  --       },
+  --     }
+  --   end,
+  -- },
+  {
+    'tpope/vim-abolish',
+  },
+  {
+    'olrtg/nvim-emmet',
+    config = function()
+      vim.keymap.set({ 'n', 'v' }, '<leader>cw', require('nvim-emmet').wrap_with_abbreviation, { desc = 'Emmet: [C]ode [W]rap' })
+    end,
+  },
 
   -- { -- Add indentation guides even on blank lines
   --   'lukas-reineke/indent-blankline.nvim',
@@ -1220,7 +1350,7 @@ require('lazy').setup({
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
   --    For additional information, see `:help lazy.nvim-lazy.nvim-structuring-your-plugins`
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
 }, {
   ui = {
     -- If you are using a Nerd Font: set icons to an empty table which will use the
