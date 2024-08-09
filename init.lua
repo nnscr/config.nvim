@@ -177,6 +177,8 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to previous [D]iagnostic message' })
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next [D]iagnostic message' })
+vim.keymap.set('n', '<leader>j', vim.diagnostic.goto_next, { desc = 'Go to next Diagnostic message' })
+vim.keymap.set('n', '<leader>k', vim.diagnostic.goto_prev, { desc = 'Go to previous Diagnostic message' })
 vim.keymap.set('n', '<leader>de', vim.diagnostic.open_float, { desc = 'Show [d]iagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>dq', vim.diagnostic.setloclist, { desc = 'Open [d]iagnostic [Q]uickfix list' })
 
@@ -356,6 +358,12 @@ require('lazy').setup({
 
       -- Useful for getting pretty icons, but requires a Nerd Font.
       { 'nvim-tree/nvim-web-devicons', enabled = vim.g.have_nerd_font },
+      {
+        'nvim-telescope/telescope-live-grep-args.nvim',
+        -- This will not install any breaking changes.
+        -- For major updates, this must be adjusted manually.
+        version = '^1.0.0',
+      },
     },
     config = function()
       -- Telescope is a fuzzy finder that comes with a lot of different things that
@@ -392,6 +400,7 @@ require('lazy').setup({
           colorscheme = {
             enable_preview = true,
           },
+          buffers = { sorting_strategy = 'ascending' },
         },
         extensions = {
           ['ui-select'] = {
@@ -403,9 +412,11 @@ require('lazy').setup({
       -- Enable Telescope extensions if they are installed
       pcall(require('telescope').load_extension, 'fzf')
       pcall(require('telescope').load_extension, 'ui-select')
+      pcall(require('telescope').load_extension, 'live_grep_args')
 
       -- See `:help telescope.builtin`
       local builtin = require 'telescope.builtin'
+      local extensions = require('telescope').extensions
 
       local find_files = function()
         builtin.find_files {
@@ -415,9 +426,9 @@ require('lazy').setup({
 
       vim.keymap.set('n', '<leader>sh', builtin.help_tags, { desc = '[S]earch [H]elp' })
       vim.keymap.set('n', '<leader>sk', builtin.keymaps, { desc = '[S]earch [K]eymaps' })
-      vim.keymap.set('n', '<leader>sf', find_files, { desc = '[S]earch All [F]iles' })
-      vim.keymap.set('n', '<leader>sF', builtin.git_files, { desc = '[S]earch Git [F]iles' })
-      vim.keymap.set('n', '<leader><leader>', find_files, { desc = '[S]earch Git [F]iles' })
+      vim.keymap.set('n', '<leader>sF', find_files, { desc = '[S]earch All [F]iles' })
+      vim.keymap.set('n', '<leader>sf', builtin.git_files, { desc = '[S]earch Git [F]iles' })
+      -- vim.keymap.set('n', '<leader><leader>', find_files, { desc = '[S]earch Git [F]iles' })
       vim.keymap.set('n', '<leader>sa', function()
         -- find all files, even ones ignored by .gitignore
         builtin.find_files { no_ignore = true, hidden = true }
@@ -425,6 +436,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>ss', builtin.builtin, { desc = '[S]earch [S]elect Telescope' })
       vim.keymap.set('n', '<leader>sw', builtin.grep_string, { desc = '[S]earch current [W]ord' })
       vim.keymap.set('n', '<leader>sg', builtin.live_grep, { desc = '[S]earch by [G]rep' })
+      vim.keymap.set('n', '<leader>sG', extensions.live_grep_args.live_grep_args, { desc = '[S]earch by [G]rep with args' })
       vim.keymap.set('n', '<leader>sd', builtin.diagnostics, { desc = '[S]earch [D]iagnostics' })
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
@@ -608,12 +620,14 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
-        tsserver = {},
         volar = {
           filetypes = { 'vue' },
           -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
         },
-        -- eslint = {},
+        eslint = {},
+        twiggy_language_server = {
+          filetypes = { 'twig' },
+        },
 
         lua_ls = {
           -- cmd = {...},
@@ -629,24 +643,28 @@ require('lazy').setup({
             },
           },
         },
-        -- phpactor = {
-        --   root_dir = function(pattern)
-        --     -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
-        --     -- (because i usually open the whole project in neovim, not api or app directory)
-        --     local util = require 'lspconfig.util'
-        --     local cwd = vim.loop.cwd()
-        --     local root = util.root_pattern 'composer.json'(pattern)
-        --
-        --     -- prefer cwd if root is a descendant
-        --     return util.path.is_descendant(root, cwd) and cwd or root
-        --     -- return root
-        --   end,
-        -- },
-        intelephense = {
-          -- init_options = {
-          --   licenceKey = '/Users/nnscr/intelephense/license.txt',
-          -- },
+        phpactor = {
+          root_dir = function(pattern)
+            -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
+            -- (because i usually open the whole project in neovim, not api or app directory)
+            local util = require 'lspconfig.util'
+            local cwd = vim.loop.cwd()
+            local root = util.root_pattern 'composer.json'(pattern)
+
+            -- prefer cwd if root is a descendant
+            return util.path.is_descendant(root, cwd) and cwd or root
+            -- return root
+          end,
+          init_options = {
+            ['symfony.enabled'] = true,
+          },
+          filetypes = { 'php' },
         },
+        -- intelephense = {
+        --   -- init_options = {
+        --   --   licenceKey = '/Users/nnscr/intelephense/license.txt',
+        --   -- },
+        -- },
         prettierd = {},
         emmet_language_server = {
           filetypes = { 'html', 'vue' },
@@ -684,6 +702,15 @@ require('lazy').setup({
           end,
         },
       }
+
+      local function organize_imports()
+        local params = {
+          command = '_typescript.organizeImports',
+          arguments = { vim.api.nvim_buf_get_name(0) },
+          title = '',
+        }
+        vim.lsp.buf.execute_command(params)
+      end
       require('lspconfig').tsserver.setup {
         -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
         -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
@@ -711,26 +738,13 @@ require('lazy').setup({
           'typescript',
           'vue',
         },
-        -- config = function()
-        --   local function organize_imports()
-        --     local params = {
-        --       command = '_typescript.organizeImports',
-        --       arguments = { vim.api.nvim_buf_get_name(0) },
-        --       title = '',
-        --     }
-        --     vim.lsp.buf.execute_command(params)
-        --   end
-        --
-        --   require('lspconfig').tsserver.setup {
-        --     capabilities = capabilities,
-        --     commands = {
-        --       OrganizeImports = {
-        --         organize_imports,
-        --         description = 'Organize Imports',
-        --       },
-        --     },
-        --   }
-        -- end,
+        capabilities = capabilities,
+        commands = {
+          OrganizeImports = {
+            organize_imports,
+            description = 'Organize Imports',
+          },
+        },
       }
     end,
   },
@@ -853,6 +867,13 @@ require('lazy').setup({
               t { '<template>', '' },
               i(2),
               t { '', '</template>', '' },
+            }),
+            ls.snippet({ trig = 'sect' }, {
+              t { '/*─────────────────────────────────────┐', '' },
+              t { '│  ' },
+              i(1),
+              t { '                                   │', '' },
+              t { '└─────────────────────────────────────*/', '' },
             }),
           })
         end,
@@ -1119,6 +1140,9 @@ require('lazy').setup({
           accept = false,
           auto_trigger = true,
         },
+        filetypes = {
+          yaml = true,
+        },
       }
 
       -- accept suggestion with tab (https://github.com/zbirenbaum/copilot.lua/issues/91#issuecomment-1345190310)
@@ -1190,6 +1214,9 @@ require('lazy').setup({
       keymaps = {
         ['<Esc>'] = 'actions.close',
       },
+      view_options = {
+        show_hidden = true,
+      },
     },
     -- Optional dependencies
     dependencies = { 'nvim-tree/nvim-web-devicons' },
@@ -1241,7 +1268,19 @@ require('lazy').setup({
               color = { fg = '#95C562' },
             },
           },
-          lualine_x = { 'encoding', 'fileformat', 'filetype', 'diagnostics' },
+          lualine_x = {
+            function()
+              local reg = vim.fn.reg_recording()
+              if reg == '' then
+                return ''
+              end -- not recording
+              return 'recording to ' .. reg
+            end,
+            'encoding',
+            'fileformat',
+            'filetype',
+            'diagnostics',
+          },
           lualine_y = { 'progress' },
           lualine_z = { 'location' },
         },
@@ -1320,6 +1359,31 @@ require('lazy').setup({
     'olrtg/nvim-emmet',
     config = function()
       vim.keymap.set({ 'n', 'v' }, '<leader>cw', require('nvim-emmet').wrap_with_abbreviation, { desc = 'Emmet: [C]ode [W]rap' })
+    end,
+  },
+  {
+    'ThePrimeagen/harpoon',
+    branch = 'harpoon2',
+    dependencies = { 'nvim-lua/plenary.nvim' },
+    config = function()
+      local harpoon = require 'harpoon'
+      harpoon.setup {}
+
+      vim.keymap.set('n', '<leader>a', function()
+        harpoon:list():add()
+      end)
+      vim.keymap.set('n', '<leader>A', function()
+        harpoon.ui:toggle_quick_menu(harpoon:list())
+      end)
+      vim.keymap.set('n', '<leader><leader>', function()
+        harpoon.ui:toggle_quick_menu(harpoon:list())
+      end)
+
+      for i = 1, 9 do
+        vim.keymap.set('n', '<leader>' .. i, function()
+          harpoon:list():select(i)
+        end)
+      end
     end,
   },
 
