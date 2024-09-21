@@ -182,6 +182,15 @@ vim.keymap.set('n', '<leader>k', vim.diagnostic.goto_prev, { desc = 'Go to previ
 vim.keymap.set('n', '<leader>de', vim.diagnostic.open_float, { desc = 'Show [d]iagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>dq', vim.diagnostic.setloclist, { desc = 'Open [d]iagnostic [Q]uickfix list' })
 
+local varsity = require 'custom.projects.varsity'
+vim.keymap.set('n', '<leader>tf', varsity.CopyTranslationFilePrefix, { desc = '[t]ranslation yank [f]ile name' })
+vim.keymap.set('n', '<leader>ty', varsity.CopyTranslationKeyUnderCursor, { desc = '[t]ranslation [y]ank key path' })
+vim.keymap.set('n', '<leader>tY', varsity.CopyTranslationKeyUnderCursorWithCall, { desc = '[t]ranslation [Y]ank key path with call' })
+vim.keymap.set('n', '<leader>tu', ':split<CR>:term just t<CR>G', { desc = '[t]ranslation [u]pdate' })
+vim.keymap.set('n', '<leader>*', '*:%s//')
+
+vim.keymap.set('n', '<leader>nt', 'vit<ESC>i<CR><ESC>O', { desc = 'insert break in tag' })
+
 vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>p', '"*p', { desc = '[P]aste from clipboard' })
@@ -875,6 +884,32 @@ require('lazy').setup({
               t { '                                   │', '' },
               t { '└─────────────────────────────────────*/', '' },
             }),
+            ls.snippet({ trig = 'clog' }, {
+              t 'console.log(',
+              i(1),
+              t ')',
+            }),
+          })
+
+          ls.add_snippets('typescript', {
+            ls.snippet({
+              trig = 'pinia',
+            }, {
+              t { 'export const use' },
+              i(1),
+              t { ' = defineStore("' },
+              i(2),
+              t { '", () => {', '' },
+              t { '\t' },
+              i(3),
+              t { '', '});', '' },
+            }),
+
+            ls.snippet({ trig = 'clog' }, {
+              t 'console.log(',
+              i(1),
+              t ')',
+            }),
           })
         end,
       },
@@ -1119,6 +1154,7 @@ require('lazy').setup({
       -- vim.keymap.set('n', '<leader>gp', ':Git push<CR>', { desc = '[G]it [P]ush' })
       vim.keymap.set('n', '<leader>gl', ':Git log<CR>', { desc = '[G]it [L]og' })
       vim.keymap.set('n', '<leader>gb', ':Git blame<CR>', { desc = '[G]it [B]lame' })
+      vim.keymap.set('n', '<leader>gr', ':Git branch<CR>', { desc = '[G]it B[r]anch' })
     end,
   },
   { -- auto close brackets, quotes, etc.
