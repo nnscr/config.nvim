@@ -327,12 +327,27 @@ require('lazy').setup({
       require('which-key').setup()
 
       -- Document existing key chains
-      require('which-key').register {
-        ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
-        ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
-        ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
-        ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
-        ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
+      require('which-key').add {
+        { '<leader>c', group = '[C]ode' },
+        { '<leader>d', group = '[D]ocument' },
+        { '<leader>r', group = '[R]ename' },
+        { '<leader>s', group = '[S]earch' },
+        { '<leader>w', group = '[W]orkspace' },
+        { '<leader>t', group = '[T]ranslations' },
+        { '<leader>g', group = '[G]it and Copilot' },
+        { '<leader><leader>', hidden = true },
+        { '<leader>0', hidden = true },
+        { '<leader>1', hidden = true },
+        { '<leader>2', hidden = true },
+        { '<leader>3', hidden = true },
+        { '<leader>4', hidden = true },
+        { '<leader>5', hidden = true },
+        { '<leader>6', hidden = true },
+        { '<leader>7', hidden = true },
+        { '<leader>8', hidden = true },
+        { '<leader>9', hidden = true },
+        { '<leader>a', desc = '[a]dd to harpoon' },
+        { '<leader>A', desc = '[A]dd and open harpoon' },
       }
     end,
   },
@@ -450,6 +465,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sr', builtin.resume, { desc = '[S]earch [R]esume' })
       vim.keymap.set('n', '<leader>s.', builtin.oldfiles, { desc = '[S]earch Recent Files ("." for repeat)' })
       vim.keymap.set('n', '<leader>sb', builtin.buffers, { desc = 'Find existing [b]uffers' })
+      vim.keymap.set('n', '<leader>sc', builtin.commands, { desc = 'Find [c]ommands' })
 
       -- Slightly advanced example of overriding default behavior and theme
       vim.keymap.set('n', '<leader>/', function()
@@ -720,7 +736,7 @@ require('lazy').setup({
         }
         vim.lsp.buf.execute_command(params)
       end
-      require('lspconfig').tsserver.setup {
+      require('lspconfig').ts_ls.setup {
         -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
         -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
         init_options = {
