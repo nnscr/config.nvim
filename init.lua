@@ -189,7 +189,59 @@ vim.keymap.set('n', '<leader>tY', varsity.CopyTranslationKeyUnderCursorWithCall,
 vim.keymap.set('n', '<leader>tu', ':split<CR>:term just t<CR>G', { desc = '[t]ranslation [u]pdate' })
 vim.keymap.set('n', '<leader>*', '*:%s//')
 
-vim.keymap.set('n', '<leader>nt', 'vit<ESC>i<CR><ESC>O', { desc = 'insert break in tag' })
+function surround_html_with_newlines()
+  local line = vim.api.nvim_get_current_line()
+  local cursor_pos = vim.api.nvim_win_get_cursor(0)
+
+  -- Match any HTML tag in the form of <tag attributes>...</tag>
+  local tag_pattern = '^%s*<(%w+)(.-)>(.-)</%1>%s*$'
+
+  -- Find the matching tag, attributes, and content inside
+  local opening_tag, attributes, content = line:match(tag_pattern)
+
+  if not opening_tag then
+    print 'No valid HTML tag found on this line.'
+  end
+
+  -- Detect whether the current line uses tabs or spaces for indentation
+  local indent = string.match(line, '^%s*') -- Capture current indentation
+  local use_tabs = indent:find '\t' ~= nil -- Check if indentation uses tabs
+
+  -- Set the appropriate indentation: either a tab or four spaces
+  local indent_unit = use_tabs and '\t' or '    '
+  local content_indent = indent .. indent_unit -- Add one more level of indentation
+
+  local updated_lines = {}
+
+  -- Check if the content is empty (i.e., <div></div>)
+  if content == '' then
+    -- Insert the new formatted tag structure for empty content
+    updated_lines = {
+      indent .. '<' .. opening_tag .. attributes .. '>',
+      content_indent, -- One depth indentation for new content
+      indent .. '</' .. opening_tag .. '>',
+    }
+  else
+    -- Insert the new formatted tag structure for non-empty content
+    updated_lines = {
+      indent .. '<' .. opening_tag .. attributes .. '>',
+      content_indent, -- One depth indentation for new content
+      content_indent .. vim.trim(content), -- Existing content indented at one level deeper
+      indent .. '</' .. opening_tag .. '>',
+    }
+  end
+
+  -- Replace the current line with the new lines
+  vim.api.nvim_buf_set_lines(0, cursor_pos[1] - 1, cursor_pos[1], false, updated_lines)
+
+  -- Move the cursor to the indented blank line inside the tag
+  vim.api.nvim_win_set_cursor(0, { cursor_pos[1] + 1, #content_indent })
+
+  vim.cmd 'startinsert!' -- Enter insert mode automatically
+end
+
+-- vim.keymap.set('n', '<leader>nt', 'vit<ESC>i<CR><ESC>O', { desc = 'insert break in tag' })
+vim.keymap.set('n', '<leader>nt', surround_html_with_newlines, { desc = 'insert break in tag' })
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
@@ -806,8 +858,8 @@ require('lazy').setup({
         --
         -- You can use a sub-list to tell conform to run *until* a formatter
         -- is found.
-        javascript = { { 'prettierd', 'prettier' } },
-        typescript = { { 'prettierd', 'prettier' } },
+        javascript = { { 'prettierd' } }, -- , 'prettier' } },
+        typescript = { { 'prettierd' } }, -- , 'prettier' } },
         vue = { { 'prettierd', 'prettier' } },
         json = { { 'prettierd', 'prettier' } },
       },
@@ -1155,10 +1207,10 @@ require('lazy').setup({
     'rmagatti/auto-session',
     config = function()
       require('auto-session').setup {
+        allowed_dirs = { '~/code/*', '~/code/*/*', '~/.config/*' },
+        auto_restore = true,
+        auto_save = true,
         log_level = 'error',
-        auto_session_allowed_dirs = { '~/code/*', '~/code/*/*', '~/.config/*' },
-        auto_save_enabled = true,
-        auto_restore_enabled = true,
       }
     end,
   },
