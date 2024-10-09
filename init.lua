@@ -188,6 +188,7 @@ vim.keymap.set('n', '<leader>ty', varsity.CopyTranslationKeyUnderCursor, { desc 
 vim.keymap.set('n', '<leader>tY', varsity.CopyTranslationKeyUnderCursorWithCall, { desc = '[t]ranslation [Y]ank key path with call' })
 vim.keymap.set('n', '<leader>tu', ':split<CR>:term just t<CR>G', { desc = '[t]ranslation [u]pdate' })
 vim.keymap.set('n', '<leader>*', '*:%s//')
+vim.keymap.set('v', '<leader>*', 'y/\\V<C-R><CR><CR>:%s//')
 
 function surround_html_with_newlines()
   local line = vim.api.nvim_get_current_line()
@@ -267,10 +268,10 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 --  See `:help wincmd` for a list of all window commands
 vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
--- vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
--- vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
-vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
-vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
+vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+-- vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
+-- vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
 
 -- vim.keymap.set('n', '<leader>e', function()
 --   if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
@@ -788,6 +789,9 @@ require('lazy').setup({
         }
         vim.lsp.buf.execute_command(params)
       end
+      -- require('lspconfig').arduino_language_server.setup {
+      --   filetypes = { 'arduino', 'cpp' },
+      -- }
       require('lspconfig').ts_ls.setup {
         -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
         -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
@@ -960,6 +964,14 @@ require('lazy').setup({
           })
 
           ls.add_snippets('typescript', {
+            ls.snippet({ trig = 'sect' }, {
+              t { '/*─────────────────────────────────────┐', '' },
+              t { '│  ' },
+              i(1),
+              t { '                                   │', '' },
+              t { '└─────────────────────────────────────*/', '' },
+            }),
+
             ls.snippet({
               trig = 'pinia',
             }, {
@@ -1317,9 +1329,21 @@ require('lazy').setup({
     opts = {
       keymaps = {
         ['<Esc>'] = 'actions.close',
+        ['~'] = false,
       },
       view_options = {
         show_hidden = true,
+      },
+      git = {
+        add = function()
+          return true
+        end,
+        mv = function()
+          return true
+        end,
+        rm = function()
+          return true
+        end,
       },
     },
     -- Optional dependencies
@@ -1487,6 +1511,15 @@ require('lazy').setup({
         vim.keymap.set('n', '<leader>' .. i, function()
           harpoon:list():select(i)
         end)
+        vim.keymap.set('n', ',' .. i, function()
+          harpoon:list():select(i)
+        end, { desc = 'Harpoon: Navigate to ' .. i })
+      end
+
+      for i, key in ipairs { 'n', 'e', 'i', 'o' } do
+        vim.keymap.set('n', ',' .. key, function()
+          harpoon:list():select(i)
+        end, { desc = 'Harpoon: Navigate to ' .. i })
       end
     end,
   },
