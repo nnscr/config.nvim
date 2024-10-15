@@ -268,10 +268,14 @@ vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' }
 --  See `:help wincmd` for a list of all window commands
 vim.keymap.set('n', '<C-h>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
 vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
-vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
-vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
--- vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
--- vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
+-- vim.keymap.set('n', '<C-j>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+-- vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
+vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
+vim.keymap.set('n', ',h', '<C-w><C-h>', { desc = 'Move focus to the left window' })
+vim.keymap.set('n', ',l', '<C-w><C-l>', { desc = 'Move focus to the right window' })
+vim.keymap.set('n', ',j', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+vim.keymap.set('n', ',k', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
 -- vim.keymap.set('n', '<leader>e', function()
 --   if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
@@ -1330,6 +1334,18 @@ require('lazy').setup({
       keymaps = {
         ['<Esc>'] = 'actions.close',
         ['~'] = false,
+        -- open telescope live grep with `*`
+        ['*'] = {
+          function()
+            require('telescope.builtin').live_grep {
+              cwd = require('oil').get_current_dir(),
+              title = 'Live Grep in ' .. require('oil').get_current_dir(),
+            }
+          end,
+          mode = 'n',
+          nowait = true,
+          desc = 'Find files in the current directory',
+        },
       },
       view_options = {
         show_hidden = true,
@@ -1521,6 +1537,16 @@ require('lazy').setup({
           harpoon:list():select(i)
         end, { desc = 'Harpoon: Navigate to ' .. i })
       end
+    end,
+  },
+  {
+    'nvim-treesitter/nvim-treesitter-context',
+    config = function()
+      require('treesitter-context').setup {
+        enable = true,
+        separator = '─',
+        mode = 'topline',
+      }
     end,
   },
 
