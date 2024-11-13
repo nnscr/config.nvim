@@ -135,6 +135,9 @@ vim.opt.updatetime = 250
 -- Displays which-key popup sooner
 vim.opt.timeoutlen = 300
 
+-- disable timeout for leader key
+vim.opt.timeout = false
+
 -- Configure how new splits should be opened
 vim.opt.splitright = true
 vim.opt.splitbelow = true
@@ -167,6 +170,7 @@ vim.opt.termguicolors = true
 -- enable spell checking
 vim.opt.spell = true
 vim.opt.spelllang = 'en_us,de_de'
+vim.opt.spelloptions = 'camel,noplainbuffer'
 
 -- disable comment continuation on new lines for php files (if will still work for all comments, but stops
 -- adding comments after attributes because the default formatter thing thinks it's a comment)
@@ -246,7 +250,7 @@ vim.keymap.set('n', '<leader>nt', surround_html_with_newlines, { desc = 'insert 
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
-vim.keymap.set('n', '<leader>p', '"*p', { desc = '[P]aste from clipboard' })
+vim.keymap.set({ 'n', 'v' }, '<leader>p', '"*p', { desc = '[P]aste from clipboard' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -299,6 +303,21 @@ vim.api.nvim_create_autocmd('TextYankPost', {
     vim.highlight.on_yank()
   end,
 })
+
+vim.api.nvim_create_autocmd('TermOpen', {
+  desc = 'Set terminal buffer options',
+  group = vim.api.nvim_create_augroup('kickstart-termopen', { clear = true }),
+  pattern = '*',
+  callback = function()
+    vim.opt_local.number = false
+    vim.opt_local.relativenumber = false
+    vim.opt_local.signcolumn = 'no'
+    vim.opt_local.spell = false
+  end,
+})
+
+-- make :gp alias for :Git push
+vim.cmd [[cnoreabbrev gp Git push]]
 
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
@@ -1162,6 +1181,9 @@ require('lazy').setup({
       --  - ci'  - [C]hange [I]nside [']quote
       require('mini.ai').setup { n_lines = 500 }
 
+      -- auto close brackets, quotes, etc.
+      require('mini.pairs').setup {}
+
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
       --
       -- - saiw) - [S]urround [A]dd [I]nner [W]ord [)]Paren
@@ -1241,12 +1263,12 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>gr', ':Git branch<CR>', { desc = '[G]it B[r]anch' })
     end,
   },
-  { -- auto close brackets, quotes, etc.
-    'm4xshen/autoclose.nvim',
-    config = function()
-      require('autoclose').setup()
-    end,
-  },
+  -- { -- auto close brackets, quotes, etc.
+  --   'm4xshen/autoclose.nvim',
+  --   config = function()
+  --     require('autoclose').setup()
+  --   end,
+  -- },
   { -- copilot
     'zbirenbaum/copilot.lua',
     opts = {
@@ -1549,7 +1571,20 @@ require('lazy').setup({
       }
     end,
   },
-
+  {
+    'jaimecgomezz/here.term',
+    config = function()
+      local here_term = require 'here-term'
+      here_term.setup {
+        mappings = {
+          enable = true,
+        },
+      }
+      vim.keymap.set({ 'n', 't' }, '<leader>tt', function()
+        here_term.toggle_terminal()
+      end)
+    end,
+  },
   -- { -- Add indentation guides even on blank lines
   --   'lukas-reineke/indent-blankline.nvim',
   --   -- Enable `lukas-reineke/indent-blankline.nvim`
