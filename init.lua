@@ -276,10 +276,29 @@ vim.keymap.set('n', '<C-l>', '<C-w><C-l>', { desc = 'Move focus to the right win
 -- vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 vim.keymap.set('n', '<C-j>', ':cnext<CR>', { desc = 'Move to the next item in the quickfix list' })
 vim.keymap.set('n', '<C-k>', ':cprev<CR>', { desc = 'Move to the previous item in the quickfix list' })
+
+-- ,h, ,l, ,j, ,k to switch between windows
 vim.keymap.set('n', ',h', '<C-w><C-h>', { desc = 'Move focus to the left window' })
 vim.keymap.set('n', ',l', '<C-w><C-l>', { desc = 'Move focus to the right window' })
 vim.keymap.set('n', ',j', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
 vim.keymap.set('n', ',k', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+-- , arrow keys to switch between windows
+vim.keymap.set('n', ',<left>', '<C-w><C-h>', { desc = 'Move focus to the left window' })
+vim.keymap.set('n', ',<right>', '<C-w><C-l>', { desc = 'Move focus to the right window' })
+vim.keymap.set('n', ',<down>', '<C-w><C-j>', { desc = 'Move focus to the lower window' })
+vim.keymap.set('n', ',<up>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
+
+-- increase / decrease split size with ctrl + arrow keys
+vim.keymap.set('n', '<C-Up>', ':resize +2<CR>', { desc = 'Increase split size' })
+vim.keymap.set('n', '<C-Down>', ':resize -2<CR>', { desc = 'Decrease split size' })
+vim.keymap.set('n', '<C-Left>', ':vertical resize +2<CR>', { desc = 'Increase vertical split size' })
+vim.keymap.set('n', '<C-Right>', ':vertical resize -2<CR>', { desc = 'Decrease vertical split size' })
+
+-- increase / decrease split size with alt + arrow keys
+vim.keymap.set('n', '<A-Up>', '<CMD>resize +2<CR>', { desc = 'Increase split size' })
+vim.keymap.set('n', '<A-Down>', '<CMD>resize -2<CR>', { desc = 'Decrease split size' })
+vim.keymap.set('n', '<A-Left>', '<CMD>vertical resize +2<CR>', { desc = 'Increase vertical split size' })
+vim.keymap.set('n', '<A-Right>', '<CMD>vertical resize -2<CR>', { desc = 'Decrease vertical split size' })
 
 -- vim.keymap.set('n', '<leader>e', function()
 --   if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
@@ -1583,6 +1602,31 @@ require('lazy').setup({
       vim.keymap.set({ 'n', 't' }, '<leader>tt', function()
         here_term.toggle_terminal()
       end)
+    end,
+  },
+  {
+    'stevearc/overseer.nvim',
+    config = function()
+      local overseer = require 'overseer'
+
+      overseer.setup {
+        default_view = 'split',
+        task_list = {
+          min_height = 20,
+        },
+        -- default_width = 40,
+        -- default_opts = {
+        --   wrap = false,
+        --   number = true,
+        --   relativenumber = true,
+        -- },
+      }
+
+      vim.keymap.set('n', '<leader>on', overseer.toggle, { desc = '[O]verseer Toggle (n)' })
+      vim.keymap.set('n', '<leader>oo', function()
+        overseer.run_template()
+        overseer.open()
+      end, { desc = '[O]verseer [A]ction' })
     end,
   },
   -- { -- Add indentation guides even on blank lines
