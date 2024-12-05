@@ -604,35 +604,6 @@ require('lazy').setup({
       { 'folke/neodev.nvim', opts = {} },
     },
     config = function()
-      -- Brief aside: **What is LSP?**
-      --
-      -- LSP is an initialism you've probably heard, but might not understand what it is.
-      --
-      -- LSP stands for Language Server Protocol. It's a protocol that helps editors
-      -- and language tooling communicate in a standardized fashion.
-      --
-      -- In general, you have a "server" which is some tool built to understand a particular
-      -- language (such as `gopls`, `lua_ls`, `rust_analyzer`, etc.). These Language Servers
-      -- (sometimes called LSP servers, but that's kind of like ATM Machine) are standalone
-      -- processes that communicate with some "client" - in this case, Neovim!
-      --
-      -- LSP provides Neovim with features like:
-      --  - Go to definition
-      --  - Find references
-      --  - Autocompletion
-      --  - Symbol Search
-      --  - and more!
-      --
-      -- Thus, Language Servers are external tools that must be installed separately from
-      -- Neovim. This is where `mason` and related plugins come into play.
-      --
-      -- If you're wondering about lsp vs treesitter, you can check out the wonderfully
-      -- and elegantly composed help section, `:help lsp-vs-treesitter`
-
-      --  This function gets run when an LSP attaches to a particular buffer.
-      --    That is to say, every time a new file is opened that is associated with
-      --    an lsp (for example, opening `main.rs` is associated with `rust_analyzer`) this
-      --    function will be executed to configure the current buffer
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
         callback = function(event)
@@ -675,15 +646,15 @@ require('lazy').setup({
           map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
 
           -- organize imports for tsserver (typescript-tools uses :TSToolsOrganizeImports)
-          map('<leader>co', ':OrganizeImports<CR>', '[C]ode [O]rganize Imports')
+          map('<leader>co', '<CMD>OrganizeImports<CR>', '[C]ode [O]rganize Imports')
           -- map('<leader>co', ':TSToolsOrganizeImports<CR>', '[C]ode [O]rganize Imports')
 
           -- Execute a code action, usually your cursor needs to be on top of an error
           -- or a suggestion from your LSP for this to activate.
           map('<leader>ca', vim.lsp.buf.code_action, '[C]ode [A]ction')
           map('<leader>cx', ':EslintFixAll<CR>', '[C]ode Fi[x] all')
-          vim.keymap.set('i', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
-          vim.keymap.set('n', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
+          -- vim.keymap.set('i', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
+          -- vim.keymap.set('n', '<C-.>', vim.lsp.buf.code_action, { buffer = event.buf, desc = 'LSP: [C]ode [A]ction' })
 
           -- Opens a popup that displays documentation about the word under your cursor
           --  See `:help K` for why this keymap.
@@ -729,6 +700,16 @@ require('lazy').setup({
       --  - capabilities (table): Override fields in capabilities. Can be used to disable certain LSP features.
       --  - settings (table): Override the default settings passed when initializing the server.
       --        For example, to see the options for `lua_ls`, you could go to: https://luals.github.io/wiki/settings/
+      --
+      local function organize_imports()
+        local params = {
+          command = '_typescript.organizeImports',
+          arguments = { vim.api.nvim_buf_get_name(0) },
+          title = '',
+        }
+        vim.lsp.buf.execute_command(params)
+      end
+
       local servers = {
         -- clangd = {},
         -- gopls = {},
@@ -792,6 +773,49 @@ require('lazy').setup({
             showSuggestionsAsSnippets = true,
           },
         },
+        ts_ls = {
+          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
+          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
+          init_options = {
+            hostInfo = 'neovim',
+            plugins = {
+              {
+                name = '@vue/typescript-plugin',
+                -- TODO: make this path more portable...
+                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+                languages = {
+                  'typescript',
+                  'vue',
+                },
+              },
+            },
+            tsserver = {
+              -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
+              --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
+              path = '/opt/homebrew/lib/node_modules/typescript/lib',
+            },
+          },
+          filetypes = {
+            'javascript',
+            'typescript',
+            'vue',
+          },
+          capabilities = capabilities,
+
+          -- only load ts_ls if there is a package.json in the root directory
+          root_dir = require('lspconfig.util').root_pattern 'package.json',
+          single_file_support = false,
+
+          commands = {
+            OrganizeImports = {
+              organize_imports,
+              description = 'Organize Imports',
+            },
+          },
+        },
+        denols = {
+          root_dir = require('lspconfig.util').root_pattern('deno.json', 'deno.jsonc'),
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -823,52 +847,10 @@ require('lazy').setup({
         },
       }
 
-      local function organize_imports()
-        local params = {
-          command = '_typescript.organizeImports',
-          arguments = { vim.api.nvim_buf_get_name(0) },
-          title = '',
-        }
-        vim.lsp.buf.execute_command(params)
-      end
       -- require('lspconfig').arduino_language_server.setup {
       --   filetypes = { 'arduino', 'cpp' },
       -- }
-      require('lspconfig').ts_ls.setup {
-        -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
-        -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
-        init_options = {
-          hostInfo = 'neovim',
-          plugins = {
-            {
-              name = '@vue/typescript-plugin',
-              -- TODO: make this path more portable...
-              location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
-              languages = {
-                'typescript',
-                'vue',
-              },
-            },
-          },
-          tsserver = {
-            -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
-            --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
-            path = '/opt/homebrew/lib/node_modules/typescript/lib',
-          },
-        },
-        filetypes = {
-          'javascript',
-          'typescript',
-          'vue',
-        },
-        capabilities = capabilities,
-        commands = {
-          OrganizeImports = {
-            organize_imports,
-            description = 'Organize Imports',
-          },
-        },
-      }
+      -- require('lspconfig').ts_ls.setup { options from server map were here}
     end,
   },
 
