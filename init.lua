@@ -584,6 +584,14 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>sn', function()
         builtin.find_files { cwd = vim.fn.stdpath 'config' }
       end, { desc = '[S]earch [N]eovim files' })
+
+      vim.keymap.set('n', '<leader>sv', function()
+        -- find .vue files only
+        builtin.find_files {
+          hidden = true,
+          find_command = { 'rg', '--files', '--glob', '*.vue' },
+        }
+      end, { desc = '[S]earch [V]ue Files' })
     end,
   },
 
@@ -724,6 +732,110 @@ require('lazy').setup({
         volar = {
           filetypes = { 'vue' },
           -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
+          on_attach = function()
+            vim.keymap.set('n', '<leader>vg', function()
+              -- Get component name from file name (e.g. MyComponent.vue -> "MyComponent")
+              local comp_name = vim.fn.expand '%:t:r'
+              local rg_cmd = 'rg --vimgrep "\\b' .. comp_name .. '\\b"'
+              local results = vim.fn.systemlist(rg_cmd)
+
+              if vim.tbl_isempty(results) then
+                vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+                return
+              end
+
+              require('telescope.builtin').live_grep { default_text = comp_name }
+            end, { desc = '[V]ue grep component name' })
+            vim.keymap.set('n', '<leader>vv', function()
+              -- Get the component name from the file's basename (e.g. MyComponent.vue → "MyComponent")
+              local comp_name = vim.fn.expand '%:t:r'
+
+              vim.lsp.buf_request(0, 'workspace/symbol', { query = comp_name }, function(err, result)
+                if err then
+                  vim.notify('Error: ' .. err.message, vim.log.levels.ERROR)
+                  return
+                end
+
+                if not result or vim.tbl_isempty(result) then
+                  vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+                  return
+                end
+
+                -- Filter to include only symbols that have a valid location.
+                local symbols = {}
+                for _, sym in ipairs(result) do
+                  if sym.location then
+                    table.insert(symbols, sym)
+                  end
+                end
+
+                if vim.tbl_isempty(symbols) then
+                  vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+                  return
+                end
+
+                local pickers = require 'telescope.pickers'
+                local finders = require 'telescope.finders'
+                local conf = require('telescope.config').values
+                local actions = require 'telescope.actions'
+                local action_state = require 'telescope.actions.state'
+
+                -- Create entries that are compatible with telescope's built-in previewers
+                local entries = {}
+                for _, sym in ipairs(symbols) do
+                  if sym.location then
+                    local filename = vim.uri_to_fname(sym.location.uri)
+                    local rel_filename = vim.fn.fnamemodify(filename, ':.')
+                    local lnum = sym.location.range.start.line + 1
+                    local col = sym.location.range.start.character + 1
+                    local display = string.format('%s:%d:%d - %s', rel_filename, lnum, col, sym.name)
+
+                    table.insert(entries, {
+                      filename = filename,
+                      lnum = lnum,
+                      col = col,
+                      text = display,
+                    })
+                  end
+                end
+
+                -- Create a horizontal layout with preview on the right
+                local opts = {
+                  layout_strategy = 'horizontal',
+                  layout_config = {
+                    preview_width = 0.5,
+                  },
+                  prompt_title = 'References to ' .. comp_name,
+                  finder = finders.new_table {
+                    results = entries,
+                    entry_maker = function(entry)
+                      return {
+                        value = entry,
+                        display = entry.text,
+                        ordinal = entry.text,
+                        filename = entry.filename,
+                        lnum = entry.lnum,
+                        col = entry.col,
+                      }
+                    end,
+                  },
+                  previewer = conf.file_previewer {},
+                  sorter = conf.generic_sorter {},
+                  attach_mappings = function(prompt_bufnr)
+                    actions.select_default:replace(function()
+                      actions.close(prompt_bufnr)
+                      local selection = action_state.get_selected_entry()
+                      vim.cmd('edit ' .. selection.filename)
+                      vim.api.nvim_win_set_cursor(0, { selection.lnum, selection.col - 1 })
+                    end)
+                    return true
+                  end,
+                }
+
+                pickers.new(opts, {}):find()
+              end)
+            end, { noremap = true, silent = true, desc = '[V]ue find references to component' })
+          end,
         },
         eslint = {},
         twiggy_language_server = {
@@ -984,6 +1096,18 @@ require('lazy').setup({
               t 'console.log(',
               i(1),
               t ')',
+            }),
+            ls.snippet({ trig = 'dprops' }, {
+              t { 'const props = defineProps<{', '' },
+              t { '\t' },
+              i(1),
+              t { '', '}>()' },
+            }),
+            ls.snippet({ trig = 'demit' }, {
+              t { 'const emit = defineEmits<{', '' },
+              t { '\t' },
+              i(1),
+              t { '', '}>()' },
             }),
           })
 
