@@ -1,107 +1,15 @@
---[[
+-- flickering workaround
+vim.g._ts_force_sync_parsing = true
+vim.diagnostic.config {
+  virtual_text = true,
+  -- virtual_lines = true,
+}
 
-=====================================================================
-==================== READ THIS BEFORE CONTINUING ====================
-=====================================================================
-========                                    .-----.          ========
-========         .----------------------.   | === |          ========
-========         |.-""""""""""""""""""-.|   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||   KICKSTART.NVIM   ||   |-----|          ========
-========         ||                    ||   | === |          ========
-========         ||                    ||   |-----|          ========
-========         ||:Tutor              ||   |:::::|          ========
-========         |'-..................-'|   |____o|          ========
-========         `"")----------------(""`   ___________      ========
-========        /::::::::::|  |::::::::::\  \ no mouse \     ========
-========       /:::========|  |==hjkl==:::\  \ required \    ========
-========      '""""""""""""'  '""""""""""""'  '""""""""""'   ========
-========                                                     ========
-=====================================================================
-=====================================================================
-
-What is Kickstart?
-
-  Kickstart.nvim is *not* a distribution.
-
-  Kickstart.nvim is a starting point for your own configuration.
-    The goal is that you can read every line of code, top-to-bottom, understand
-    what your configuration is doing, and modify it to suit your needs.
-
-    Once you've done that, you can start exploring, configuring and tinkering to
-    make Neovim your own! That might mean leaving Kickstart just the way it is for a while
-    or immediately breaking it into modular pieces. It's up to you!
-
-    If you don't know anything about Lua, I recommend taking some time to read through
-    a guide. One possible example which will only take 10-15 minutes:
-      - https://learnxinyminutes.com/docs/lua/
-
-    After understanding a bit more about Lua, you can use `:help lua-guide` as a
-    reference for how Neovim integrates Lua.
-    - :help lua-guide
-    - (or HTML version): https://neovim.io/doc/user/lua-guide.html
-
-Kickstart Guide:
-
-  TODO: The very first thing you should do is to run the command `:Tutor` in Neovim.
-
-    If you don't know what this means, type the following:
-      - <escape key>
-      - :
-      - Tutor
-      - <enter key>
-
-    (If you already know the Neovim basics, you can skip this step.)
-
-  Once you've completed that, you can continue working through **AND READING** the rest
-  of the kickstart init.lua.
-
-  Next, run AND READ `:help`.
-    This will open up a help window with some basic information
-    about reading, navigating and searching the builtin help documentation.
-
-    This should be the first place you go to look when you're stuck or confused
-    with something. It's one of my favorite Neovim features.
-
-    MOST IMPORTANTLY, we provide a keymap "<space>sh" to [s]earch the [h]elp documentation,
-    which is very useful when you're not exactly sure of what you're looking for.
-
-  I have left several `:help X` comments throughout the init.lua
-    These are hints about where to find more information about the relevant settings,
-    plugins or Neovim features used in Kickstart.
-
-   NOTE: Look for lines like this
-
-    Throughout the file. These are for you, the reader, to help you understand what is happening.
-    Feel free to delete them once you know what you're doing, but they should serve as a guide
-    for when you are first encountering a few different constructs in your Neovim config.
-
-If you experience any errors while trying to install kickstart, run `:checkhealth` for more info.
-
-I hope you enjoy your Neovim journey,
-- TJ
-
-P.S. You can delete this when you're done too. It's your config now! :)
---]]
-
--- Set <space> as the leader key
--- See `:help mapleader`
---  NOTE: Must happen before plugins are loaded (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-
--- Set to true if you have a Nerd Font installed
 vim.g.have_nerd_font = true
 
--- [[ Setting options ]]
--- See `:help vim.opt`
--- NOTE: You can change these options as you wish!
---  For more options, you can see `:help option-list`
-
--- Make line numbers default
 vim.opt.number = true
--- You can also add relative line numbers, to help with jumping.
---  Experiment for yourself to see if you like it!
 vim.opt.relativenumber = true
 
 -- Enable mouse mode, can be useful for resizing splits for example!
@@ -145,8 +53,8 @@ vim.opt.splitbelow = true
 -- Sets how neovim will display certain whitespace characters in the editor.
 --  See `:help 'list'`
 --  and `:help 'listchars'`
-vim.opt.list = true
-vim.opt.listchars = { tab = '» ', trail = ' ', nbsp = '␣' }
+vim.opt.list = false
+-- vim.opt.listchars = { tab = '» ', trail = ' ', nbsp = '␣' }
 
 -- Preview substitutions live, as you type!
 vim.opt.inccommand = 'split'
@@ -166,6 +74,7 @@ vim.opt.hlsearch = true
 -- Show a visual line on column 120
 vim.opt.colorcolumn = '120'
 vim.opt.termguicolors = true
+vim.opt.textwidth = 120
 
 -- enable spell checking
 vim.opt.spell = true
@@ -186,6 +95,7 @@ vim.keymap.set('n', '<leader>k', vim.diagnostic.goto_prev, { desc = 'Go to previ
 vim.keymap.set('n', '<leader>de', vim.diagnostic.open_float, { desc = 'Show [d]iagnostic [E]rror messages' })
 vim.keymap.set('n', '<leader>dq', vim.diagnostic.setloclist, { desc = 'Open [d]iagnostic [Q]uickfix list' })
 
+-- varsity specific key binds
 local varsity = require 'custom.projects.varsity'
 vim.keymap.set('n', '<leader>tf', varsity.CopyTranslationFilePrefix, { desc = '[t]ranslation yank [f]ile name' })
 vim.keymap.set('n', '<leader>ty', varsity.CopyTranslationKeyUnderCursor, { desc = '[t]ranslation [y]ank key path' })
@@ -194,6 +104,7 @@ vim.keymap.set('n', '<leader>tu', ':split<CR>:term just t<CR>G', { desc = '[t]ra
 vim.keymap.set('n', '<leader>*', '*:%s//')
 vim.keymap.set('v', '<leader>*', 'y/\\V<C-R><CR><CR>:%s//')
 
+-- <leader>nt = <div></div> -> <div>\n|\n</div>
 function surround_html_with_newlines()
   local line = vim.api.nvim_get_current_line()
   local cursor_pos = vim.api.nvim_win_get_cursor(0)
@@ -247,6 +158,12 @@ end
 
 -- vim.keymap.set('n', '<leader>nt', 'vit<ESC>i<CR><ESC>O', { desc = 'insert break in tag' })
 vim.keymap.set('n', '<leader>nt', surround_html_with_newlines, { desc = 'insert break in tag' })
+-- move rest of the line to new line and wrap in curly braces
+-- original: if (true) return null
+-- after:    if (true) {
+--               return null;
+--           }
+vim.keymap.set('n', '<leader>nb', 'i{<ENTER><ESC>$o}<ESC>', { desc = 'insert break in block' })
 
 vim.keymap.set({ 'n', 'v' }, '<leader>y', [["+y]], { desc = '[Y]ank to clipboard' })
 vim.keymap.set('n', '<leader>Y', [["+Y]], { desc = '[Y]ank to clipboard' })
@@ -289,16 +206,21 @@ vim.keymap.set('n', ',<down>', '<C-w><C-j>', { desc = 'Move focus to the lower w
 vim.keymap.set('n', ',<up>', '<C-w><C-k>', { desc = 'Move focus to the upper window' })
 
 -- increase / decrease split size with ctrl + arrow keys
-vim.keymap.set('n', '<C-Up>', ':resize +2<CR>', { desc = 'Increase split size' })
-vim.keymap.set('n', '<C-Down>', ':resize -2<CR>', { desc = 'Decrease split size' })
-vim.keymap.set('n', '<C-Left>', ':vertical resize +2<CR>', { desc = 'Increase vertical split size' })
-vim.keymap.set('n', '<C-Right>', ':vertical resize -2<CR>', { desc = 'Decrease vertical split size' })
+vim.keymap.set('n', '<C-Up>', '<CMD>resize +2<CR>', { desc = 'Increase split size' })
+vim.keymap.set('n', '<C-Down>', '<CMD>resize -2<CR>', { desc = 'Decrease split size' })
+vim.keymap.set('n', '<C-Left>', '<CMD>vertical resize +2<CR>', { desc = 'Increase vertical split size' })
+vim.keymap.set('n', '<C-Right>', '<CMD>vertical resize -2<CR>', { desc = 'Decrease vertical split size' })
 
 -- increase / decrease split size with alt + arrow keys
 vim.keymap.set('n', '<A-Up>', '<CMD>resize +2<CR>', { desc = 'Increase split size' })
 vim.keymap.set('n', '<A-Down>', '<CMD>resize -2<CR>', { desc = 'Decrease split size' })
 vim.keymap.set('n', '<A-Left>', '<CMD>vertical resize +2<CR>', { desc = 'Increase vertical split size' })
 vim.keymap.set('n', '<A-Right>', '<CMD>vertical resize -2<CR>', { desc = 'Decrease vertical split size' })
+
+-- delete to black hole register
+vim.keymap.set({ 'n', 'v' }, ',d', '"_d', { desc = 'Delete to black hole register' })
+vim.keymap.set({ 'n', 'v' }, ',x', '"_x', { desc = 'X to black hole register' })
+vim.keymap.set({ 'n', 'v' }, ',c', '"_c', { desc = 'Change to black hole register' })
 
 -- vim.keymap.set('n', '<leader>e', function()
 --   if vim.api.nvim_buf_get_option(0, 'filetype') == 'netrw' then
@@ -397,6 +319,7 @@ require('lazy').setup({
       vim.keymap.set('n', '<leader>gk', require('gitsigns').prev_hunk, { desc = 'Previous Git Sign' })
       vim.keymap.set('n', '<leader>gq', require('gitsigns').setqflist, { desc = 'Previous Git Sign' })
       vim.keymap.set('n', '<leader>gd', require('gitsigns').toggle_deleted, { desc = 'Toggle [d]eleted lines' })
+      vim.keymap.set('n', '<leader>hs', require('gitsigns').reset_hunk, { desc = '[h]uren [s]ohn' })
     end,
   },
 
@@ -599,7 +522,8 @@ require('lazy').setup({
     'neovim/nvim-lspconfig',
     dependencies = {
       -- Automatically install LSPs and related tools to stdpath for Neovim
-      'williamboman/mason.nvim',
+      -- NOTE: `opts = {}` is the same as calling `require('mason').setup({})`
+      { 'mason-org/mason.nvim', opts = {} },
       'williamboman/mason-lspconfig.nvim',
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
@@ -609,7 +533,17 @@ require('lazy').setup({
 
       -- `neodev` configures Lua LSP for your Neovim config, runtime and plugins
       -- used for completion, annotations and signatures of Neovim apis
-      { 'folke/neodev.nvim', opts = {} },
+      -- replaced by lazydev
+      -- { 'folke/neodev.nvim', opts = {} },
+      {
+        'folke/lazydev.nvim',
+        ft = 'lua', -- only load on lua files
+        opts = {
+          library = {
+            '~/.config/nvim',
+          },
+        },
+      },
     },
     config = function()
       vim.api.nvim_create_autocmd('LspAttach', {
@@ -639,7 +573,7 @@ require('lazy').setup({
           -- Jump to the type of the word under your cursor.
           --  Useful when you're not sure what type a variable is and you want to see
           --  the definition of its *type*, not where it was *defined*.
-          map('<leader>D', require('telescope.builtin').lsp_type_definitions, 'Type [D]efinition')
+          map('gy', require('telescope.builtin').lsp_type_definitions, '[G]oto T[y]pe Definition')
 
           -- Fuzzy find all the symbols in your current document.
           --  Symbols are things like variables, functions, types, etc.
@@ -718,6 +652,12 @@ require('lazy').setup({
         vim.lsp.buf.execute_command(params)
       end
 
+      local vue_config = {
+        filetypes = { 'vue', 'javascriptreact', 'typescriptreact' },
+        -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
+        on_attach = function() end,
+      }
+
       local servers = {
         -- clangd = {},
         -- gopls = {},
@@ -729,9 +669,82 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
-        volar = {
-          filetypes = { 'vue' },
-          -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
+
+        -- vue_ls = vue_config,
+        eslint = {},
+        twiggy_language_server = {
+          filetypes = { 'twig' },
+        },
+
+        lua_ls = {
+          -- cmd = {...},
+          -- filetypes = { ...},
+          -- capabilities = {},
+          settings = {
+            Lua = {
+              completion = {
+                callSnippet = 'Replace',
+              },
+              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
+              -- diagnostics = { disable = { 'missing-fields' } },
+            },
+          },
+        },
+        phpactor = {
+          root_dir = function(pattern)
+            -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
+            -- (because i usually open the whole project in neovim, not api or app directory)
+            local util = require 'lspconfig.util'
+            local cwd = vim.loop.cwd()
+            local root = util.root_pattern 'composer.json'(pattern)
+
+            -- prefer cwd if root is a descendant
+            return util.path.is_descendant(root, cwd) and cwd or root
+            -- return root
+          end,
+          init_options = {
+            ['symfony.enabled'] = true,
+            ['language_server_phpstan.enabled'] = true,
+          },
+          filetypes = { 'php' },
+        },
+        -- intelephense = {
+        --   -- init_options = {
+        --   --   licenceKey = '/Users/nnscr/intelephense/license.txt',
+        --   -- },
+        -- },
+        prettierd = {},
+        emmet_language_server = {
+          -- filetypes = { 'html', 'vue' },
+          init_options = {
+            showSuggestionsAsSnippets = true,
+          },
+        },
+        ts_ls = {
+          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
+          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
+          init_options = {
+            hostInfo = 'neovim',
+            plugins = {
+              {
+                name = '@vue/typescript-plugin',
+                -- TODO: make this path more portable...
+                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+                languages = {
+                  'typescript',
+                  'typescriptreact',
+                  'javascript',
+                  'javascriptreact',
+                  'vue',
+                },
+              },
+            },
+            tsserver = {
+              -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
+              --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
+              path = '/opt/homebrew/lib/node_modules/typescript/lib',
+            },
+          },
           on_attach = function()
             vim.keymap.set('n', '<leader>vg', function()
               -- Get component name from file name (e.g. MyComponent.vue -> "MyComponent")
@@ -836,80 +849,11 @@ require('lazy').setup({
               end)
             end, { noremap = true, silent = true, desc = '[V]ue find references to component' })
           end,
-        },
-        eslint = {},
-        twiggy_language_server = {
-          filetypes = { 'twig' },
-        },
-
-        lua_ls = {
-          -- cmd = {...},
-          -- filetypes = { ...},
-          -- capabilities = {},
-          settings = {
-            Lua = {
-              completion = {
-                callSnippet = 'Replace',
-              },
-              -- You can toggle below to ignore Lua_LS's noisy `missing-fields` warnings
-              -- diagnostics = { disable = { 'missing-fields' } },
-            },
-          },
-        },
-        phpactor = {
-          root_dir = function(pattern)
-            -- find the first directory that contains a composer.json file and set the root dir for phpactor to that
-            -- (because i usually open the whole project in neovim, not api or app directory)
-            local util = require 'lspconfig.util'
-            local cwd = vim.loop.cwd()
-            local root = util.root_pattern 'composer.json'(pattern)
-
-            -- prefer cwd if root is a descendant
-            return util.path.is_descendant(root, cwd) and cwd or root
-            -- return root
-          end,
-          init_options = {
-            ['symfony.enabled'] = true,
-          },
-          filetypes = { 'php' },
-        },
-        -- intelephense = {
-        --   -- init_options = {
-        --   --   licenceKey = '/Users/nnscr/intelephense/license.txt',
-        --   -- },
-        -- },
-        prettierd = {},
-        emmet_language_server = {
-          filetypes = { 'html', 'vue' },
-          init_options = {
-            showSuggestionsAsSnippets = true,
-          },
-        },
-        ts_ls = {
-          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
-          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
-          init_options = {
-            hostInfo = 'neovim',
-            plugins = {
-              {
-                name = '@vue/typescript-plugin',
-                -- TODO: make this path more portable...
-                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
-                languages = {
-                  'typescript',
-                  'vue',
-                },
-              },
-            },
-            tsserver = {
-              -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
-              --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
-              path = '/opt/homebrew/lib/node_modules/typescript/lib',
-            },
-          },
           filetypes = {
-            'javascript',
             'typescript',
+            'typescriptreact',
+            'javascript',
+            'javascriptreact',
             'vue',
           },
           capabilities = capabilities,
@@ -925,9 +869,9 @@ require('lazy').setup({
             },
           },
         },
-        denols = {
-          root_dir = require('lspconfig.util').root_pattern('deno.json', 'deno.jsonc'),
-        },
+        -- denols = {
+        --   root_dir = require('lspconfig.util').root_pattern('deno.json', 'deno.jsonc'),
+        -- },
       }
 
       -- Ensure the servers and tools above are installed
@@ -947,9 +891,12 @@ require('lazy').setup({
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
 
       require('mason-lspconfig').setup {
+        ensure_installed = {},
+        automatic_enable = true, -- Automatically enable servers that are installed
         handlers = {
           function(server_name)
             local server = servers[server_name] or {}
+
             -- This handles overriding only values explicitly passed
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for tsserver)
@@ -958,6 +905,9 @@ require('lazy').setup({
           end,
         },
       }
+
+      require('lspconfig').ts_ls.setup(servers.ts_ls)
+      -- require('lspconfig').emmet_language_server.setup(servers.emmet_language_server)
 
       -- require('lspconfig').arduino_language_server.setup {
       --   filetypes = { 'arduino', 'cpp' },
@@ -1000,8 +950,10 @@ require('lazy').setup({
         -- is found.
         javascript = { 'prettierd' }, -- , 'prettier' } },
         typescript = { 'prettierd' }, -- , 'prettier' } },
-        vue = { 'prettierd', 'prettier' },
-        json = { 'prettierd', 'prettier' },
+        javascriptreact = { 'prettierd' }, -- , 'prettier' } },
+        typescriptreact = { 'prettierd' }, -- , 'prettier' } },
+        vue = { 'prettierd' },
+        json = { 'prettierd' },
       },
     },
   },
@@ -1085,60 +1037,107 @@ require('lazy').setup({
               i(2),
               t { '', '</template>', '' },
             }),
-            ls.snippet({ trig = 'sect' }, {
-              t { '/*─────────────────────────────────────┐', '' },
-              t { '│  ' },
-              i(1),
-              t { '                                   │', '' },
-              t { '└─────────────────────────────────────*/', '' },
-            }),
-            ls.snippet({ trig = 'clog' }, {
-              t 'console.log(',
-              i(1),
-              t ')',
-            }),
-            ls.snippet({ trig = 'dprops' }, {
-              t { 'const props = defineProps<{', '' },
-              t { '\t' },
-              i(1),
-              t { '', '}>()' },
-            }),
-            ls.snippet({ trig = 'demit' }, {
-              t { 'const emit = defineEmits<{', '' },
-              t { '\t' },
-              i(1),
-              t { '', '}>()' },
-            }),
           })
 
-          ls.add_snippets('typescript', {
-            ls.snippet({ trig = 'sect' }, {
-              t { '/*─────────────────────────────────────┐', '' },
-              t { '│  ' },
-              i(1),
-              t { '                                   │', '' },
-              t { '└─────────────────────────────────────*/', '' },
-            }),
+          for _, lang in ipairs { 'javascript', 'typescript', 'javascriptreact', 'typescriptreact', 'vue' } do
+            ls.add_snippets(lang, {
+              ls.snippet({ trig = 'sect' }, {
+                t { '/*─────────────────────────────────────┐', '' },
+                t { '│  ' },
+                i(1),
+                t { '                                   │', '' },
+                t { '└─────────────────────────────────────*/', '' },
+              }),
 
-            ls.snippet({
-              trig = 'pinia',
-            }, {
-              t { 'export const use' },
-              i(1),
-              t { ' = defineStore("' },
-              i(2),
-              t { '", () => {', '' },
-              t { '\t' },
-              i(3),
-              t { '', '});', '' },
-            }),
+              ls.snippet({ trig = 'dprops' }, {
+                t { 'const props = defineProps<{', '' },
+                t { '\t' },
+                i(1),
+                t { '', '}>()' },
+              }),
 
-            ls.snippet({ trig = 'clog' }, {
-              t 'console.log(',
-              i(1),
-              t ')',
-            }),
-          })
+              ls.snippet({ trig = 'demit' }, {
+                t { 'const emit = defineEmits<{', '' },
+                t { '\t' },
+                i(1),
+                t { '', '}>()' },
+              }),
+
+              ls.snippet({ trig = 'dtr' }, {
+                t { 'const trans = defineTranslations({', '' },
+                t { '\t' },
+                i(1),
+                t { '', '})' },
+              }),
+
+              ls.snippet({
+                trig = 'pinia',
+              }, {
+                t { 'export const use' },
+                i(1),
+                t { ' = defineStore("' },
+                i(2),
+                t { '", () => {', '' },
+                t { '\t' },
+                i(3),
+                t { '', '});', '' },
+              }),
+
+              ls.snippet({ trig = 'clog' }, {
+                t 'console.log(',
+                i(1),
+                t ')',
+              }),
+
+              ls.snippet({ trig = 'cmt' }, {
+                t { '/**', '' },
+                t { ' * ' },
+                i(1),
+                t { '', ' */' },
+              }),
+
+              -- arrow function with body
+              ls.snippet({ trig = 'fb' }, {
+                t { '(' },
+                i(1),
+                t { ') => {' },
+                i(2),
+                t { '}' },
+              }),
+
+              -- lambda arrow function
+              ls.snippet({ trig = 'ff' }, {
+                t { '() => ' },
+                i(1),
+              }),
+
+              ls.snippet({ trig = 'fun' }, {
+                t 'function ',
+                i(1),
+                t '(',
+                i(2),
+                t '): ',
+                i(3),
+                t { ' {', '' },
+                t '\t',
+                i(4),
+                t { '', '}' },
+              }),
+
+              ls.snippet({ trig = 'afunc' }, {
+                t 'async function ',
+                i(1),
+                t '(',
+                i(2),
+                t '): Promise<',
+                i(3),
+                t { '> {', '' },
+                t '\t',
+                i(4),
+                t { '', '}' },
+              }),
+            })
+          end
         end,
       },
       'saadparwaiz1/cmp_luasnip',
@@ -1307,7 +1306,7 @@ require('lazy').setup({
       require('mini.ai').setup { n_lines = 500 }
 
       -- auto close brackets, quotes, etc.
-      require('mini.pairs').setup {}
+      -- require('mini.pairs').setup {}
 
       -- Add/delete/replace surroundings (brackets, quotes, etc.)
       --
@@ -1445,36 +1444,11 @@ require('lazy').setup({
         'rcarriga/nvim-notify',
         opts = {
           background_colour = '#1E1E1E',
+          top_down = false,
         },
       },
     },
   },
-  -- { -- file explorer
-  --   'nvim-neo-tree/neo-tree.nvim',
-  --   branch = 'v3.x',
-  --   dependencies = {
-  --     'nvim-lua/plenary.nvim',
-  --     'nvim-tree/nvim-web-devicons', -- not strictly required, but recommended
-  --     'MunifTanjim/nui.nvim',
-  --     '3rd/image.nvim', -- Optional image support in preview window: See `# Preview Mode` for more information
-  --   },
-  --   config = function()
-  --     require('neo-tree').setup {
-  --       auto_open = false,
-  --       update_to_buf_dir = {
-  --         enable = true,
-  --         auto_open = false,
-  --       },
-  --       view = {
-  --         width = 30,
-  --         side = 'left',
-  --         auto_resize = true,
-  --       },
-  --     }
-  --
-  --     vim.keymap.set('n', '<leader>E', ':Neotree toggle<CR>', { desc = '[E]xplorer (Neotree)' })
-  --   end,
-  -- },
   {
     'stevearc/oil.nvim',
     opts = {
@@ -1512,16 +1486,6 @@ require('lazy').setup({
     -- Optional dependencies
     dependencies = { 'nvim-tree/nvim-web-devicons' },
   },
-  -- { -- LSP rename when a file or directory is renamed (must be loaded after neotree)
-  --   'antosha417/nvim-lsp-file-operations',
-  --   dependencies = {
-  --     'nvim-lua/plenary.nvim',
-  --     -- 'nvim-neo-tree/neo-tree.nvim',
-  --   },
-  --   config = function()
-  --     require('lsp-file-operations').setup()
-  --   end,
-  -- },
   {
     'chentoast/marks.nvim',
     opts = {},
@@ -1734,6 +1698,17 @@ require('lazy').setup({
         overseer.open()
       end, { desc = '[O]verseer [A]ction' })
     end,
+  },
+  {
+    'luckasRanarison/tailwind-tools.nvim',
+    name = 'tailwind-tools',
+    build = ':UpdateRemotePlugins',
+    dependencies = {
+      'nvim-treesitter/nvim-treesitter',
+      'nvim-telescope/telescope.nvim', -- optional
+      'neovim/nvim-lspconfig', -- optional
+    },
+    opts = {}, -- your configuration
   },
   -- { -- Add indentation guides even on blank lines
   --   'lukas-reineke/indent-blankline.nvim',
