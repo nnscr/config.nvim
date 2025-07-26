@@ -74,7 +74,7 @@ vim.opt.hlsearch = true
 -- Show a visual line on column 120
 vim.opt.colorcolumn = '120'
 vim.opt.termguicolors = true
-vim.opt.textwidth = 120
+vim.opt.textwidth = 0
 
 -- enable spell checking
 vim.opt.spell = true
@@ -544,6 +544,9 @@ require('lazy').setup({
           },
         },
       },
+
+      -- Allows extra capabilities provided by blink.cmp
+      'saghen/blink.cmp',
     },
     config = function()
       vim.api.nvim_create_autocmd('LspAttach', {
@@ -588,7 +591,22 @@ require('lazy').setup({
           map('<leader>rn', vim.lsp.buf.rename, '[R]e[n]ame')
 
           -- organize imports for tsserver (typescript-tools uses :TSToolsOrganizeImports)
-          map('<leader>co', '<CMD>OrganizeImports<CR>', '[C]ode [O]rganize Imports')
+          -- map('<leader>co', '<CMD>OrganizeImports<CR>', '[C]ode [O]rganize Imports')
+          -- in deinem LspAttach-Autocmd:
+          map('<leader>co', function()
+            -- vtsls / tsserver liefert eines dieser Action-Kinds zurück
+            vim.lsp.buf.code_action {
+              context = {
+                only = {
+                  'source.organizeImports', -- generisch
+                  'source.organizeImports.ts', -- TS / TSX
+                  'source.organizeImports.js', -- JS / JSX
+                },
+                diagnostics = {}, -- leer lassen -> ganze Datei
+              },
+              apply = true, -- erste gefundene Aktion automatisch ausführen
+            }
+          end, '[C]ode [O]rganize Imports')
           -- map('<leader>co', ':TSToolsOrganizeImports<CR>', '[C]ode [O]rganize Imports')
 
           -- Execute a code action, usually your cursor needs to be on top of an error
@@ -628,10 +646,9 @@ require('lazy').setup({
 
       -- LSP servers and clients are able to communicate to each other what features they support.
       --  By default, Neovim doesn't support everything that is in the LSP specification.
-      --  When you add nvim-cmp, luasnip, etc. Neovim now has *more* capabilities.
-      --  So, we create new capabilities with nvim cmp, and then broadcast that to the servers.
-      local capabilities = vim.lsp.protocol.make_client_capabilities()
-      capabilities = vim.tbl_deep_extend('force', capabilities, require('cmp_nvim_lsp').default_capabilities())
+      --  When you add blink.cmp, luasnip, etc. Neovim now has *more* capabilities.
+      --  So, we create new capabilities with blink.cmp, and then broadcast that to the servers.
+      local capabilities = require('blink.cmp').get_lsp_capabilities()
 
       -- Enable the following language servers
       --  Feel free to add/remove any LSPs that you want here. They will automatically be installed.
@@ -652,13 +669,168 @@ require('lazy').setup({
         vim.lsp.buf.execute_command(params)
       end
 
-      local vue_config = {
-        filetypes = { 'vue', 'javascriptreact', 'typescriptreact' },
-        -- filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue', 'json' },
-        on_attach = function() end,
+      local vue_plugin = {
+        name = '@vue/typescript-plugin',
+        location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+        languages = { 'vue' },
+        configNamespace = 'typescript',
+      }
+      local vtsls_config = {
+        filetypes = { 'typescript', 'javascript', 'javascriptreact', 'typescriptreact', 'vue' },
+        settings = {
+          vtsls = {
+            experimental = { vue = { plugin = true } },
+            tsserver = {
+              path = '/opt/homebrew/lib/node_modules/typescript/lib',
+              globalPlugins = {
+                vue_plugin,
+              },
+            },
+          },
+        },
+        on_attach = function()
+          vim.keymap.set('n', '<leader>vg', function()
+            -- Get component name from file name (e.g. MyComponent.vue -> "MyComponent")
+            local comp_name = vim.fn.expand '%:t:r'
+            local rg_cmd = 'rg --vimgrep "\\b' .. comp_name .. '\\b"'
+            local results = vim.fn.systemlist(rg_cmd)
+
+            if vim.tbl_isempty(results) then
+              vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+              return
+            end
+
+            require('telescope.builtin').live_grep { default_text = comp_name }
+          end, { desc = '[V]ue grep component name' })
+          vim.keymap.set('n', '<leader>vv', function()
+            -- Get the component name from the file's basename (e.g. MyComponent.vue → "MyComponent")
+            local comp_name = vim.fn.expand '%:t:r'
+
+            vim.lsp.buf_request(0, 'workspace/symbol', { query = comp_name }, function(err, result)
+              if err then
+                vim.notify('Error: ' .. err.message, vim.log.levels.ERROR)
+                return
+              end
+
+              if not result or vim.tbl_isempty(result) then
+                vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+                return
+              end
+
+              -- Filter to include only symbols that have a valid location.
+              local symbols = {}
+              for _, sym in ipairs(result) do
+                if sym.location then
+                  table.insert(symbols, sym)
+                end
+              end
+
+              if vim.tbl_isempty(symbols) then
+                vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+                return
+              end
+
+              local pickers = require 'telescope.pickers'
+              local finders = require 'telescope.finders'
+              local conf = require('telescope.config').values
+              local actions = require 'telescope.actions'
+              local action_state = require 'telescope.actions.state'
+
+              -- Create entries that are compatible with telescope's built-in previewers
+              local entries = {}
+              for _, sym in ipairs(symbols) do
+                if sym.location then
+                  local filename = vim.uri_to_fname(sym.location.uri)
+                  local rel_filename = vim.fn.fnamemodify(filename, ':.')
+                  local lnum = sym.location.range.start.line + 1
+                  local col = sym.location.range.start.character + 1
+                  local display = string.format('%s:%d:%d - %s', rel_filename, lnum, col, sym.name)
+
+                  table.insert(entries, {
+                    filename = filename,
+                    lnum = lnum,
+                    col = col,
+                    text = display,
+                  })
+                end
+              end
+
+              -- Create a horizontal layout with preview on the right
+              local opts = {
+                layout_strategy = 'horizontal',
+                layout_config = {
+                  preview_width = 0.5,
+                },
+                prompt_title = 'References to ' .. comp_name,
+                finder = finders.new_table {
+                  results = entries,
+                  entry_maker = function(entry)
+                    return {
+                      value = entry,
+                      display = entry.text,
+                      ordinal = entry.text,
+                      filename = entry.filename,
+                      lnum = entry.lnum,
+                      col = entry.col,
+                    }
+                  end,
+                },
+                previewer = conf.file_previewer {},
+                sorter = conf.generic_sorter {},
+                attach_mappings = function(prompt_bufnr)
+                  actions.select_default:replace(function()
+                    actions.close(prompt_bufnr)
+                    local selection = action_state.get_selected_entry()
+                    vim.cmd('edit ' .. selection.filename)
+                    vim.api.nvim_win_set_cursor(0, { selection.lnum, selection.col - 1 })
+                  end)
+                  return true
+                end,
+              }
+
+              pickers.new(opts, {}):find()
+            end)
+          end, { noremap = true, silent = true, desc = '[V]ue find references to component' })
+        end,
       }
 
+      local vue_ls_config = {
+        on_init = function(client)
+          client.handlers['tsserver/request'] = function(_, result, context)
+            local clients = vim.lsp.get_clients { bufnr = context.bufnr, name = 'vtsls' }
+            if #clients == 0 then
+              vim.notify('Could not find `vtsls` lsp client, `vue_ls` would not work without it.', vim.log.levels.ERROR)
+              return
+            end
+            local ts_client = clients[1]
+
+            local param = unpack(result)
+            local id, command, payload = unpack(param)
+            ts_client:exec_cmd({
+              title = 'vue_request_forward', -- You can give title anything as it's used to represent a command in the UI, `:h Client:exec_cmd`
+              command = 'typescript.tsserverRequest',
+              arguments = {
+                command,
+                payload,
+              },
+            }, { bufnr = context.bufnr }, function(_, r)
+              local response_data = { { id, r.body } }
+              ---@diagnostic disable-next-line: param-type-mismatch
+              client:notify('tsserver/response', response_data)
+            end)
+          end
+        end,
+      }
+
+      vim.lsp.config('vtsls', vtsls_config)
+      -- vim.lsp.config('vue_ls', vue_ls_config)
+      -- vim.lsp.enable { 'vtsls', 'vue_ls' }
+      vim.lsp.enable { 'vtsls' }
+
       local servers = {
+        vue_ls = vtsls_config,
+        -- vtsls = vtsls_config,
+
         -- clangd = {},
         -- gopls = {},
         -- pyright = {},
@@ -669,8 +841,8 @@ require('lazy').setup({
         --    https://github.com/pmizio/typescript-tools.nvim
         --
         -- But for many setups, the LSP (`tsserver`) will work just fine
+        --
 
-        -- vue_ls = vue_config,
         eslint = {},
         twiggy_language_server = {
           filetypes = { 'twig' },
@@ -720,155 +892,156 @@ require('lazy').setup({
             showSuggestionsAsSnippets = true,
           },
         },
-        ts_ls = {
-          -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
-          -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
-          init_options = {
-            hostInfo = 'neovim',
-            plugins = {
-              {
-                name = '@vue/typescript-plugin',
-                -- TODO: make this path more portable...
-                location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
-                languages = {
-                  'typescript',
-                  'typescriptreact',
-                  'javascript',
-                  'javascriptreact',
-                  'vue',
-                },
-              },
-            },
-            tsserver = {
-              -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
-              --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
-              path = '/opt/homebrew/lib/node_modules/typescript/lib',
-            },
-          },
-          on_attach = function()
-            vim.keymap.set('n', '<leader>vg', function()
-              -- Get component name from file name (e.g. MyComponent.vue -> "MyComponent")
-              local comp_name = vim.fn.expand '%:t:r'
-              local rg_cmd = 'rg --vimgrep "\\b' .. comp_name .. '\\b"'
-              local results = vim.fn.systemlist(rg_cmd)
 
-              if vim.tbl_isempty(results) then
-                vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
-                return
-              end
+        -- ts_ls = {
+        --   -- NOTE: typescript and @vue/typescript-plugin both must be installed globally
+        --   -- see from https://github.com/neovim/nvim-lspconfig/blob/master/doc/server_configurations.md#vue-support
+        --   init_options = {
+        --     hostInfo = 'neovim',
+        --     plugins = {
+        --       {
+        --         name = '@vue/typescript-plugin',
+        --         location = '/opt/homebrew/lib/node_modules/@vue/typescript-plugin/',
+        --         languages = {
+        --           'typescript',
+        --           'typescriptreact',
+        --           'javascript',
+        --           'javascriptreact',
+        --           'vue',
+        --         },
+        --       },
+        --     },
+        --     tsserver = {
+        --       -- see https://github.com/k0mpreni/nvim-lua/blob/5948d7c8346f23863da68019929775b63321328c/after/plugin/lsp.lua#L17
+        --       --path = require('mason-registry').get_package('typescript-language-server'):get_install_path() .. '/node_modules/typescript/lib',
+        --       path = '/opt/homebrew/lib/node_modules/typescript/lib',
+        --     },
+        --   },
+        --   on_attach = function()
+        --     vim.keymap.set('n', '<leader>vg', function()
+        --       -- Get component name from file name (e.g. MyComponent.vue -> "MyComponent")
+        --       local comp_name = vim.fn.expand '%:t:r'
+        --       local rg_cmd = 'rg --vimgrep "\\b' .. comp_name .. '\\b"'
+        --       local results = vim.fn.systemlist(rg_cmd)
+        --
+        --       if vim.tbl_isempty(results) then
+        --         vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+        --         return
+        --       end
+        --
+        --       require('telescope.builtin').live_grep { default_text = comp_name }
+        --     end, { desc = '[V]ue grep component name' })
+        --     vim.keymap.set('n', '<leader>vv', function()
+        --       -- Get the component name from the file's basename (e.g. MyComponent.vue → "MyComponent")
+        --       local comp_name = vim.fn.expand '%:t:r'
+        --
+        --       vim.lsp.buf_request(0, 'workspace/symbol', { query = comp_name }, function(err, result)
+        --         if err then
+        --           vim.notify('Error: ' .. err.message, vim.log.levels.ERROR)
+        --           return
+        --         end
+        --
+        --         if not result or vim.tbl_isempty(result) then
+        --           vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+        --           return
+        --         end
+        --
+        --         -- Filter to include only symbols that have a valid location.
+        --         local symbols = {}
+        --         for _, sym in ipairs(result) do
+        --           if sym.location then
+        --             table.insert(symbols, sym)
+        --           end
+        --         end
+        --
+        --         if vim.tbl_isempty(symbols) then
+        --           vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
+        --           return
+        --         end
+        --
+        --         local pickers = require 'telescope.pickers'
+        --         local finders = require 'telescope.finders'
+        --         local conf = require('telescope.config').values
+        --         local actions = require 'telescope.actions'
+        --         local action_state = require 'telescope.actions.state'
+        --
+        --         -- Create entries that are compatible with telescope's built-in previewers
+        --         local entries = {}
+        --         for _, sym in ipairs(symbols) do
+        --           if sym.location then
+        --             local filename = vim.uri_to_fname(sym.location.uri)
+        --             local rel_filename = vim.fn.fnamemodify(filename, ':.')
+        --             local lnum = sym.location.range.start.line + 1
+        --             local col = sym.location.range.start.character + 1
+        --             local display = string.format('%s:%d:%d - %s', rel_filename, lnum, col, sym.name)
+        --
+        --             table.insert(entries, {
+        --               filename = filename,
+        --               lnum = lnum,
+        --               col = col,
+        --               text = display,
+        --             })
+        --           end
+        --         end
+        --
+        --         -- Create a horizontal layout with preview on the right
+        --         local opts = {
+        --           layout_strategy = 'horizontal',
+        --           layout_config = {
+        --             preview_width = 0.5,
+        --           },
+        --           prompt_title = 'References to ' .. comp_name,
+        --           finder = finders.new_table {
+        --             results = entries,
+        --             entry_maker = function(entry)
+        --               return {
+        --                 value = entry,
+        --                 display = entry.text,
+        --                 ordinal = entry.text,
+        --                 filename = entry.filename,
+        --                 lnum = entry.lnum,
+        --                 col = entry.col,
+        --               }
+        --             end,
+        --           },
+        --           previewer = conf.file_previewer {},
+        --           sorter = conf.generic_sorter {},
+        --           attach_mappings = function(prompt_bufnr)
+        --             actions.select_default:replace(function()
+        --               actions.close(prompt_bufnr)
+        --               local selection = action_state.get_selected_entry()
+        --               vim.cmd('edit ' .. selection.filename)
+        --               vim.api.nvim_win_set_cursor(0, { selection.lnum, selection.col - 1 })
+        --             end)
+        --             return true
+        --           end,
+        --         }
+        --
+        --         pickers.new(opts, {}):find()
+        --       end)
+        --     end, { noremap = true, silent = true, desc = '[V]ue find references to component' })
+        --   end,
+        --   filetypes = {
+        --     'typescript',
+        --     'typescriptreact',
+        --     'javascript',
+        --     'javascriptreact',
+        --     'vue',
+        --   },
+        --   capabilities = capabilities,
+        --
+        --   -- only load ts_ls if there is a package.json in the root directory
+        --   root_dir = require('lspconfig.util').root_pattern 'package.json',
+        --   single_file_support = false,
+        --
+        --   commands = {
+        --     OrganizeImports = {
+        --       organize_imports,
+        --       description = 'Organize Imports',
+        --     },
+        --   },
+        -- },
 
-              require('telescope.builtin').live_grep { default_text = comp_name }
-            end, { desc = '[V]ue grep component name' })
-            vim.keymap.set('n', '<leader>vv', function()
-              -- Get the component name from the file's basename (e.g. MyComponent.vue → "MyComponent")
-              local comp_name = vim.fn.expand '%:t:r'
-
-              vim.lsp.buf_request(0, 'workspace/symbol', { query = comp_name }, function(err, result)
-                if err then
-                  vim.notify('Error: ' .. err.message, vim.log.levels.ERROR)
-                  return
-                end
-
-                if not result or vim.tbl_isempty(result) then
-                  vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
-                  return
-                end
-
-                -- Filter to include only symbols that have a valid location.
-                local symbols = {}
-                for _, sym in ipairs(result) do
-                  if sym.location then
-                    table.insert(symbols, sym)
-                  end
-                end
-
-                if vim.tbl_isempty(symbols) then
-                  vim.notify('No references found for ' .. comp_name, vim.log.levels.INFO)
-                  return
-                end
-
-                local pickers = require 'telescope.pickers'
-                local finders = require 'telescope.finders'
-                local conf = require('telescope.config').values
-                local actions = require 'telescope.actions'
-                local action_state = require 'telescope.actions.state'
-
-                -- Create entries that are compatible with telescope's built-in previewers
-                local entries = {}
-                for _, sym in ipairs(symbols) do
-                  if sym.location then
-                    local filename = vim.uri_to_fname(sym.location.uri)
-                    local rel_filename = vim.fn.fnamemodify(filename, ':.')
-                    local lnum = sym.location.range.start.line + 1
-                    local col = sym.location.range.start.character + 1
-                    local display = string.format('%s:%d:%d - %s', rel_filename, lnum, col, sym.name)
-
-                    table.insert(entries, {
-                      filename = filename,
-                      lnum = lnum,
-                      col = col,
-                      text = display,
-                    })
-                  end
-                end
-
-                -- Create a horizontal layout with preview on the right
-                local opts = {
-                  layout_strategy = 'horizontal',
-                  layout_config = {
-                    preview_width = 0.5,
-                  },
-                  prompt_title = 'References to ' .. comp_name,
-                  finder = finders.new_table {
-                    results = entries,
-                    entry_maker = function(entry)
-                      return {
-                        value = entry,
-                        display = entry.text,
-                        ordinal = entry.text,
-                        filename = entry.filename,
-                        lnum = entry.lnum,
-                        col = entry.col,
-                      }
-                    end,
-                  },
-                  previewer = conf.file_previewer {},
-                  sorter = conf.generic_sorter {},
-                  attach_mappings = function(prompt_bufnr)
-                    actions.select_default:replace(function()
-                      actions.close(prompt_bufnr)
-                      local selection = action_state.get_selected_entry()
-                      vim.cmd('edit ' .. selection.filename)
-                      vim.api.nvim_win_set_cursor(0, { selection.lnum, selection.col - 1 })
-                    end)
-                    return true
-                  end,
-                }
-
-                pickers.new(opts, {}):find()
-              end)
-            end, { noremap = true, silent = true, desc = '[V]ue find references to component' })
-          end,
-          filetypes = {
-            'typescript',
-            'typescriptreact',
-            'javascript',
-            'javascriptreact',
-            'vue',
-          },
-          capabilities = capabilities,
-
-          -- only load ts_ls if there is a package.json in the root directory
-          root_dir = require('lspconfig.util').root_pattern 'package.json',
-          single_file_support = false,
-
-          commands = {
-            OrganizeImports = {
-              organize_imports,
-              description = 'Organize Imports',
-            },
-          },
-        },
         -- denols = {
         --   root_dir = require('lspconfig.util').root_pattern('deno.json', 'deno.jsonc'),
         -- },
@@ -897,16 +1070,22 @@ require('lazy').setup({
           function(server_name)
             local server = servers[server_name] or {}
 
+            -- if server_name == 'vtsls' or server_name == 'vue_ls' then
+            --   -- Skip vtsls and vue_ls, they are handled above
+            --   return
+            -- end
+
             -- This handles overriding only values explicitly passed
             -- by the server configuration above. Useful when disabling
             -- certain features of an LSP (for example, turning off formatting for tsserver)
             server.capabilities = vim.tbl_deep_extend('force', {}, capabilities, server.capabilities or {})
-            require('lspconfig')[server_name].setup(server)
+            -- require('lspconfig')[server_name].setup(server)
+            vim.lsp.config(server_name, server)
           end,
         },
       }
 
-      require('lspconfig').ts_ls.setup(servers.ts_ls)
+      -- require('lspconfig').ts_ls.setup(servers.ts_ls)
       -- require('lspconfig').emmet_language_server.setup(servers.emmet_language_server)
 
       -- require('lspconfig').arduino_language_server.setup {
@@ -959,12 +1138,14 @@ require('lazy').setup({
   },
 
   { -- Autocompletion
-    'hrsh7th/nvim-cmp',
+    'saghen/blink.cmp',
     event = 'InsertEnter',
+    version = '1.*',
     dependencies = {
       -- Snippet Engine & its associated nvim-cmp source
       {
         'L3MON4D3/LuaSnip',
+        version = '2.*',
         build = (function()
           -- Build Step is needed for regex support in snippets.
           -- This step is not supported in many windows environments.
@@ -1140,95 +1321,161 @@ require('lazy').setup({
           end
         end,
       },
-      'saadparwaiz1/cmp_luasnip',
-
-      -- Adds other completion capabilities.
-      --  nvim-cmp does not ship with all sources by default. They are split
-      --  into multiple repos for maintenance purposes.
-      'hrsh7th/cmp-nvim-lsp',
-      'hrsh7th/cmp-path',
+      -- 'saadparwaiz1/cmp_luasnip',
+      --
+      -- -- Adds other completion capabilities.
+      -- --  nvim-cmp does not ship with all sources by default. They are split
+      -- --  into multiple repos for maintenance purposes.
+      -- 'hrsh7th/cmp-nvim-lsp',
+      -- 'hrsh7th/cmp-path',
+      'folke/lazydev.nvim',
     },
-    config = function()
-      -- See `:help cmp`
-      local cmp = require 'cmp'
-      local luasnip = require 'luasnip'
-      luasnip.config.setup {}
-
-      cmp.setup {
-        snippet = {
-          expand = function(args)
-            luasnip.lsp_expand(args.body)
-          end,
-        },
-        completion = { completeopt = 'menu,menuone,noinsert' },
-
-        -- add a nice little border and padding to the cmp windows
-        window = {
-          completion = cmp.config.window.bordered(),
-          documentation = cmp.config.window.bordered(),
-        },
-
-        -- For an understanding of why these mappings were
-        -- chosen, you will need to read `:help ins-completion`
+    opts = {
+      keymap = {
+        -- 'default' (recommended) for mappings similar to built-in completions
+        --   <c-y> to accept ([y]es) the completion.
+        --    This will auto-import if your LSP supports it.
+        --    This will expand snippets if the LSP sent a snippet.
+        -- 'super-tab' for tab to accept
+        -- 'enter' for enter to accept
+        -- 'none' for no mappings
+        --
+        -- For an understanding of why the 'default' preset is recommended,
+        -- you will need to read `:help ins-completion`
         --
         -- No, but seriously. Please read `:help ins-completion`, it is really good!
-        mapping = cmp.mapping.preset.insert {
-          -- Select the [n]ext item
-          ['<C-n>'] = cmp.mapping.select_next_item(),
-          -- Select the [p]revious item
-          ['<C-p>'] = cmp.mapping.select_prev_item(),
+        --
+        -- All presets have the following mappings:
+        -- <tab>/<s-tab>: move to right/left of your snippet expansion
+        -- <c-space>: Open menu or open docs if already open
+        -- <c-n>/<c-p> or <up>/<down>: Select next/previous item
+        -- <c-e>: Hide menu
+        -- <c-k>: Toggle signature help
+        --
+        -- See :h blink-cmp-config-keymap for defining your own keymap
+        preset = 'default',
 
-          -- Scroll the documentation window [b]ack / [f]orward
-          ['<C-b>'] = cmp.mapping.scroll_docs(-4),
-          ['<C-f>'] = cmp.mapping.scroll_docs(4),
+        -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
+        --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+      },
 
-          -- Accept ([y]es) the completion.
-          --  This will auto-import if your LSP supports it.
-          --  This will expand snippets if the LSP sent a snippet.
-          ['<C-y>'] = cmp.mapping.confirm { select = true },
-          -- ['<Tab>'] = cmp.mapping.confirm { select = true },
-          ['<Enter>'] = cmp.mapping.confirm { select = true },
+      appearance = {
+        -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
+        -- Adjusts spacing to ensure icons are aligned
+        nerd_font_variant = 'mono',
+      },
 
-          -- Manually trigger a completion from nvim-cmp.
-          --  Generally you don't need this, because nvim-cmp will display
-          --  completions whenever it has completion options available.
-          ['<C-Space>'] = cmp.mapping.complete {},
+      completion = {
+        -- By default, you may press `<c-space>` to show the documentation.
+        -- Optionally, set `auto_show = true` to show the documentation after a delay.
+        documentation = { auto_show = false, auto_show_delay_ms = 500 },
+      },
 
-          -- Think of <c-l> as moving to the right of your snippet expansion.
-          --  So if you have a snippet that's like:
-          --  function $name($args)
-          --    $body
-          --  end
-          --
-          -- <c-l> will move you to the right of each of the expansion locations.
-          -- <c-h> is similar, except moving you backwards.
-          ['<C-l>'] = cmp.mapping(function()
-            if luasnip.expand_or_locally_jumpable() then
-              luasnip.expand_or_jump()
-            end
-          end, { 'i', 's' }),
-          ['<C-h>'] = cmp.mapping(function()
-            if luasnip.locally_jumpable(-1) then
-              luasnip.jump(-1)
-            end
-          end, { 'i', 's' }),
-
-          -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
-          --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+      sources = {
+        default = { 'lsp', 'path', 'snippets', 'lazydev' },
+        providers = {
+          -- lsp = { module = 'blink.cmp.sources.lsp', score_offset = 100 },
+          lazydev = { module = 'lazydev.integrations.blink', score_offset = 100 },
+          -- snippets = { score_offset = -1000, enabled = true },
         },
-        sources = {
-          {
-            name = 'nvim_lsp',
-            entry_filter = function(entry)
-              -- Filter out `Text` completions, as they are not useful.
-              return require('cmp.types').lsp.CompletionItemKind[entry:get_kind()] ~= 'Text'
-            end,
-          },
-          { name = 'luasnip' },
-          { name = 'path' },
-        },
-      }
-    end,
+      },
+
+      snippets = { preset = 'luasnip' },
+
+      -- Blink.cmp includes an optional, recommended rust fuzzy matcher,
+      -- which automatically downloads a prebuilt binary when enabled.
+      --
+      -- By default, we use the Lua implementation instead, but you may enable
+      -- the rust implementation via `'prefer_rust_with_warning'`
+      --
+      -- See :h blink-cmp-config-fuzzy for more information
+      -- fuzzy = { implementation = 'lua' },
+      fuzzy = { implementation = 'prefer_rust_with_warning' },
+
+      -- Shows a signature help window while you type arguments for a function
+      signature = { enabled = true },
+    },
+    -- config = function()
+    --   -- See `:help cmp`
+    --   local cmp = require 'cmp'
+    --   local luasnip = require 'luasnip'
+    --   luasnip.config.setup {}
+    --
+    --   cmp.setup {
+    --     snippet = {
+    --       expand = function(args)
+    --         luasnip.lsp_expand(args.body)
+    --       end,
+    --     },
+    --     completion = { completeopt = 'menu,menuone,noinsert' },
+    --
+    --     -- add a nice little border and padding to the cmp windows
+    --     window = {
+    --       completion = cmp.config.window.bordered(),
+    --       documentation = cmp.config.window.bordered(),
+    --     },
+    --
+    --     -- For an understanding of why these mappings were
+    --     -- chosen, you will need to read `:help ins-completion`
+    --     --
+    --     -- No, but seriously. Please read `:help ins-completion`, it is really good!
+    --     mapping = cmp.mapping.preset.insert {
+    --       -- Select the [n]ext item
+    --       ['<C-n>'] = cmp.mapping.select_next_item(),
+    --       -- Select the [p]revious item
+    --       ['<C-p>'] = cmp.mapping.select_prev_item(),
+    --
+    --       -- Scroll the documentation window [b]ack / [f]orward
+    --       ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+    --       ['<C-f>'] = cmp.mapping.scroll_docs(4),
+    --
+    --       -- Accept ([y]es) the completion.
+    --       --  This will auto-import if your LSP supports it.
+    --       --  This will expand snippets if the LSP sent a snippet.
+    --       ['<C-y>'] = cmp.mapping.confirm { select = true },
+    --       -- ['<Tab>'] = cmp.mapping.confirm { select = true },
+    --       ['<Enter>'] = cmp.mapping.confirm { select = true },
+    --
+    --       -- Manually trigger a completion from nvim-cmp.
+    --       --  Generally you don't need this, because nvim-cmp will display
+    --       --  completions whenever it has completion options available.
+    --       ['<C-Space>'] = cmp.mapping.complete {},
+    --
+    --       -- Think of <c-l> as moving to the right of your snippet expansion.
+    --       --  So if you have a snippet that's like:
+    --       --  function $name($args)
+    --       --    $body
+    --       --  end
+    --       --
+    --       -- <c-l> will move you to the right of each of the expansion locations.
+    --       -- <c-h> is similar, except moving you backwards.
+    --       ['<C-l>'] = cmp.mapping(function()
+    --         if luasnip.expand_or_locally_jumpable() then
+    --           luasnip.expand_or_jump()
+    --         end
+    --       end, { 'i', 's' }),
+    --       ['<C-h>'] = cmp.mapping(function()
+    --         if luasnip.locally_jumpable(-1) then
+    --           luasnip.jump(-1)
+    --         end
+    --       end, { 'i', 's' }),
+    --
+    --       -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
+    --       --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
+    --     },
+    --     sources = {
+    --       {
+    --         name = 'nvim_lsp',
+    --         entry_filter = function(entry)
+    --           -- Filter out `Text` completions, as they are not useful.
+    --           return require('cmp.types').lsp.CompletionItemKind[entry:get_kind()] ~= 'Text'
+    --         end,
+    --       },
+    --       { name = 'luasnip' },
+    --       { name = 'path' },
+    --     },
+    --   }
+    -- end,
   },
 
   -- { -- You can easily change to a different colorscheme.
@@ -1367,14 +1614,13 @@ require('lazy').setup({
 
   { -- automatically save and restore sessions within ~/code and ~/.config directories
     'rmagatti/auto-session',
-    config = function()
-      require('auto-session').setup {
-        allowed_dirs = { '~/code/*', '~/code/*/*', '~/.config/*' },
-        auto_restore = true,
-        auto_save = true,
-        log_level = 'error',
-      }
-    end,
+    lazy = false,
+    opts = {
+      allowed_dirs = { '~/code/*', '~/code/*/*', '~/.config/*' },
+      auto_restore = true,
+      auto_save = true,
+      log_level = 'error',
+    },
   },
   {
     'tpope/vim-fugitive',
@@ -1412,7 +1658,7 @@ require('lazy').setup({
       }
 
       -- accept suggestion with tab (https://github.com/zbirenbaum/copilot.lua/issues/91#issuecomment-1345190310)
-      vim.keymap.set('i', '<Tab>', function()
+      vim.keymap.set('i', '<C-e>', function()
         if require('copilot.suggestion').is_visible() then
           require('copilot.suggestion').accept()
         else
@@ -1433,6 +1679,12 @@ require('lazy').setup({
     event = 'VeryLazy',
     opts = {
       -- add any options here
+      routes = {
+        {
+          filter = { event = 'msg_show', kind = 'search_count' },
+          opts = { skip = true },
+        },
+      },
     },
     dependencies = {
       -- if you lazy-load any plugin below, make sure to add proper `module="..."` entries
