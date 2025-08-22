@@ -33,6 +33,13 @@ vim.opt.undofile = true
 vim.opt.ignorecase = true
 vim.opt.smartcase = true
 
+-- Enable custom colored cursor
+vim.opt.termguicolors = true -- true color mode
+vim.opt.guicursor = { -- use custom group
+  'n-v-c:block-Cursor', -- normal/visual/command: block, hl=Cursor
+  'i:ver25-CursorInsert',
+}
+
 -- Keep signcolumn on by default
 vim.opt.signcolumn = 'yes'
 
@@ -80,6 +87,8 @@ vim.opt.textwidth = 0
 vim.opt.spell = true
 vim.opt.spelllang = 'en_us,de_de'
 vim.opt.spelloptions = 'camel,noplainbuffer'
+
+vim.o.sessionoptions = 'blank,buffers,curdir,folds,help,tabpages,winsize,winpos,terminal,localoptions'
 
 -- disable comment continuation on new lines for php files (if will still work for all comments, but stops
 -- adding comments after attributes because the default formatter thing thinks it's a comment)
@@ -1155,171 +1164,7 @@ require('lazy').setup({
           end
           return 'make install_jsregexp'
         end)(),
-        dependencies = {
-          -- `friendly-snippets` contains a variety of premade snippets.
-          --    See the README about individual language/framework/plugin snippets:
-          --    https://github.com/rafamadriz/friendly-snippets
-          -- {
-          --   'rafamadriz/friendly-snippets',
-          --   config = function()
-          --     require('luasnip.loaders.from_vscode').lazy_load()
-          --   end,
-          -- },
-        },
-        config = function()
-          local ls = require 'luasnip'
-          local t = ls.text_node
-          local i = ls.insert_node
-
-          -- add pubf snippet for php public function (without overwriting others)
-          ls.add_snippets('php', {
-            ls.snippet({ trig = 'pubf' }, {
-              t 'public function ',
-              i(1),
-              t '(',
-              i(2),
-              t ')',
-              t { '', '{', '' },
-              t '\t',
-              i(3, ''),
-              t { '', '}' },
-            }),
-            ls.snippet({ trig = 'prif' }, {
-              t 'private function ',
-              i(1),
-              t '(',
-              i(2),
-              t ')',
-              t { '', '{', '' },
-              t '\t',
-              i(3, ''),
-              t { '', '}' },
-            }),
-            ls.snippet({ trig = 'pubsf' }, {
-              t 'public static function ',
-              i(1),
-              t '(',
-              i(2),
-              t ')',
-              t { '', '{', '' },
-              t '\t',
-              i(3, ''),
-              t { '', '}' },
-            }),
-          })
-
-          ls.add_snippets('vue', {
-            ls.snippet({ trig = 'sfc' }, {
-              t { '<script setup lang="ts">', '' },
-              i(1),
-              t { '', '</script>', '' },
-              t { '' },
-              t { '<template>', '' },
-              i(2),
-              t { '', '</template>', '' },
-            }),
-          })
-
-          for _, lang in ipairs { 'javascript', 'typescript', 'javascriptreact', 'typescriptreact', 'vue' } do
-            ls.add_snippets(lang, {
-              ls.snippet({ trig = 'sect' }, {
-                t { '/*─────────────────────────────────────┐', '' },
-                t { '│  ' },
-                i(1),
-                t { '                                   │', '' },
-                t { '└─────────────────────────────────────*/', '' },
-              }),
-
-              ls.snippet({ trig = 'dprops' }, {
-                t { 'const props = defineProps<{', '' },
-                t { '\t' },
-                i(1),
-                t { '', '}>()' },
-              }),
-
-              ls.snippet({ trig = 'demit' }, {
-                t { 'const emit = defineEmits<{', '' },
-                t { '\t' },
-                i(1),
-                t { '', '}>()' },
-              }),
-
-              ls.snippet({ trig = 'dtr' }, {
-                t { 'const trans = defineTranslations({', '' },
-                t { '\t' },
-                i(1),
-                t { '', '})' },
-              }),
-
-              ls.snippet({
-                trig = 'pinia',
-              }, {
-                t { 'export const use' },
-                i(1),
-                t { ' = defineStore("' },
-                i(2),
-                t { '", () => {', '' },
-                t { '\t' },
-                i(3),
-                t { '', '});', '' },
-              }),
-
-              ls.snippet({ trig = 'clog' }, {
-                t 'console.log(',
-                i(1),
-                t ')',
-              }),
-
-              ls.snippet({ trig = 'cmt' }, {
-                t { '/**', '' },
-                t { ' * ' },
-                i(1),
-                t { '', ' */' },
-              }),
-
-              -- arrow function with body
-              ls.snippet({ trig = 'fb' }, {
-                t { '(' },
-                i(1),
-                t { ') => {' },
-                i(2),
-                t { '}' },
-              }),
-
-              -- lambda arrow function
-              ls.snippet({ trig = 'ff' }, {
-                t { '() => ' },
-                i(1),
-              }),
-
-              ls.snippet({ trig = 'fun' }, {
-                t 'function ',
-                i(1),
-                t '(',
-                i(2),
-                t '): ',
-                i(3),
-                t { ' {', '' },
-                t '\t',
-                i(4),
-                t { '', '}' },
-              }),
-
-              ls.snippet({ trig = 'afunc' }, {
-                t 'async function ',
-                i(1),
-                t '(',
-                i(2),
-                t '): Promise<',
-                i(3),
-                t { '> {', '' },
-                t '\t',
-                i(4),
-                t { '', '}' },
-              }),
-            })
-          end
-        end,
+        config = require('snips').config,
       },
       -- 'saadparwaiz1/cmp_luasnip',
       --
@@ -1353,7 +1198,7 @@ require('lazy').setup({
         -- <c-k>: Toggle signature help
         --
         -- See :h blink-cmp-config-keymap for defining your own keymap
-        preset = 'default',
+        preset = 'enter',
 
         -- For more advanced Luasnip keymaps (e.g. selecting choice nodes, expansion) see:
         --    https://github.com/L3MON4D3/LuaSnip?tab=readme-ov-file#keymaps
@@ -1489,10 +1334,52 @@ require('lazy').setup({
   --     -- Load the colorscheme here. (default tokyonight-night)
   --     -- Like many other themes, this one has different styles, and you could load
   --     -- any other, such as 'tokyonight-storm', 'tokyonight-moon', or 'tokyonight-day'.
-  --     -- vim.cmd.colorscheme 'tokyonight-night'
-  --
+  --     vim.cmd.colorscheme 'tokyonight-night'
   --   end,
   -- },
+  {
+    'rose-pine/neovim',
+  },
+  {
+    'projekt0n/github-nvim-theme',
+    name = 'github-theme',
+    lazy = false,
+    config = function()
+      require('github-theme').setup {
+        groups = {
+          all = {
+            Cursor = {
+              bg = '#FF0000',
+              fg = '#000000',
+            },
+            lCursor = {
+              bg = '#FF0000',
+              fg = '#000000',
+            },
+            CursorIM = {
+              bg = '#FF0000',
+              fg = '#000000',
+            },
+            CursorInsert = {
+              bg = '#FF00FF',
+              fg = '#000000',
+            },
+          },
+        },
+      }
+
+      -- vim.cmd.colorscheme 'github_light'
+    end,
+  },
+  {
+    'catppuccin/nvim',
+    name = 'catppuccin',
+    priority = 1000,
+    -- config = function()
+    --   require('catppuccin').setup()
+    --   vim.cmd.colorscheme 'catppuccin-latte'
+    -- end,
+  },
 
   {
     'tiagovla/tokyodark.nvim',
@@ -1658,7 +1545,7 @@ require('lazy').setup({
       }
 
       -- accept suggestion with tab (https://github.com/zbirenbaum/copilot.lua/issues/91#issuecomment-1345190310)
-      vim.keymap.set('i', '<C-e>', function()
+      vim.keymap.set('i', '<Tab>', function()
         if require('copilot.suggestion').is_visible() then
           require('copilot.suggestion').accept()
         else
